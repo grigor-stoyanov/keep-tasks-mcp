@@ -1,0 +1,58 @@
+# Privacy Policy
+
+_Last updated: 2026-10-13_
+
+## What this is
+
+Keep Tasks MCP is a small open-source tool for **personal use**. It lets an AI assistant that you
+connect to it read and manage your own Google Tasks and Google Keep notes. It is not a hosted
+service and has no user accounts. Anyone who uses it runs their own copy, with their own Google
+credentials, on their own computer or their own Google Cloud project.
+
+The author does not operate a server that receives your data and cannot see it.
+
+## Data the tool accesses
+
+When you sign in with Google and grant access, the tool can:
+
+- **Google Tasks**: read, create, update and delete your task lists and tasks.
+- **Google Keep** (optional, via an unofficial library): read, create, edit, archive and trash your notes
+  and checklists.
+
+It only does these things when the AI assistant you connected asks it to, in response to your requests.
+
+## What is stored and where
+
+- **Credentials** (a Google refresh token and, if you enable Keep, a Keep master token) are stored as
+  environment variables in your own deployment, or in a local `env.yaml` file on your computer.
+- **Your tasks and notes** are not copied into any database, file or log by this tool. They pass through
+  to the AI assistant you connected, and nowhere else.
+- **Platform logs.** If you deploy to Google Cloud Run, Google's platform keeps standard request
+  logs for your project. That is controlled by you, in your Google Cloud project.
+
+## Sharing
+
+The tool does not sell, share or transfer your data to anyone, and has no analytics, advertising or
+tracking. Data goes only between Google, your own deployment, and the AI assistant you chose to connect.
+What that assistant does with the data is governed by that assistant's own privacy policy.
+
+## Google API Services User Data Policy
+
+This tool's use and transfer of information received from Google APIs adheres to the
+[Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
+including the Limited Use requirements. Data is used only to provide the features you ask for.
+
+## Your control
+
+- **Revoke access** at any time at <https://myaccount.google.com/permissions>.
+- **Delete everything** by deleting your deployment and your local `env.yaml`.
+- **Rotate the connector URL** by changing `MCP_SECRET` and redeploying.
+
+## Security note
+
+Anyone who has your connector URL, or your Google refresh token or Keep master token, can access your
+tasks and notes. Keep them private. The Keep master token grants broad access to your Google account.
+
+## Contact
+
+Questions: open an issue at <https://github.com/grigor-stoyanov/keep-tasks-mcp/issues>.
