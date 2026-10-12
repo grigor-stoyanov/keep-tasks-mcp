@@ -1,77 +1,125 @@
-# Google Keep + Tasks MCP server
+# Google Keep + Tasks MCP Server
 
-A remote MCP server (Streamable HTTP) that you add to Claude as a **custom connector**.
-13 tools: `tasks_*` (official Google Tasks API) and `keep_*` (unofficial, via `gkeepapi`).
+A remote [Model Context Protocol](https://modelcontextprotocol.io) server that lets an AI assistant
+read and manage my **Google Tasks** and **Google Keep** notes. It runs over Streamable HTTP, so it
+can be added to Claude as a custom connector and used from the desktop and mobile apps.
 
-> **Keep caveat:** Google offers no Keep API for personal @gmail.com accounts. `gkeepapi`
-> reverse-engineers the Android app's protocol using a "master token" that grants broad access
-> to your Google account. It works, but Google can break it at any time. Treat
-> `KEEP_MASTER_TOKEN` like your password. Keep is optional: leave those vars unset to disable it.
+I built it to learn how MCP servers work end to end: tool design, auth, deployment, and keeping a
+codebase small enough to extend without fear.
 
-## 1. Google Tasks credentials (about 5 min)
+## What it does
 
-1. https://console.cloud.google.com: create a project (e.g. `claude-mcp`).
-2. **APIs & Services → Library**: enable **Google Tasks API**.
-3. **Google Auth Platform → Branding**: fill in the app name and your email. **Audience**: External,
-   then click **Publish app** (set it to *In production*). In *Testing* mode, refresh tokens expire after 7 days.
-4. **Clients → Create client → Desktop app**, then download the JSON as `client_secret.json`.
-5. Get the refresh token (a browser opens; click *Advanced → continue* on the "unverified app" screen):
+14 tools, grouped by service:
+
+| Service | Tools |
+|---|---|
+| **Google Tasks** (official API) | `tasks_list_tasklists`, `tasks_create_tasklist`, `tasks_list_tasks`, `tasks_create_task`, `tasks_update_task`, `tasks_delete_task`, `tasks_get_task_by_title` |
+| **Google Keep** (unofficial, `gkeepapi`) | `keep_search_notes`, `keep_get_note`, `keep_create_note`, `keep_create_list`, `keep_update_note`, `keep_update_list`, `keep_trash_note` |
+
+Example prompts: *"What's due this week?"*, *"Add a checklist called Groceries with milk, eggs and bread"*,
+*"Move everything labelled work to archived"*.
+
+## Architecture
+
+```
+src/
+  main.py            entrypoint: imports the tool modules, then runs the server
+  server.py          the FastMCP instance, nothing else
+  tools/             MCP layer: parameters, validation, response shaping
+    task_tools.py
+    keep_tools.py
+  clients/           one class per Google service: auth, locking, raw calls
+    task_client.py
+    keep_client.py
+  utils/             pure helpers (date parsing, paging, response views)
+  constants/         OAuth scopes
+```
+
+Dependencies only point one way: `main -> tools -> clients`. Nothing in `clients/` knows about MCP
+beyond raising `ToolError`.
+
+### Design decisions
+
+- **Thin clients, smart tools.** A client method makes exactly one call to Google with the
+  parameters it is given and returns the raw response. Tools decide everything else: validation,
+  paging through `nextPageToken`, and the shape of what the model sees. This keeps clients
+  trivial to reason about and gives the tool layer one obvious place for behaviour.
+- **Lazy, cached clients behind a lock.** Each client is a module-level singleton that builds its
+  service on first use, so a missing Keep credential never stops the Tasks tools from working. The
+  Google API objects are not thread-safe and FastMCP runs sync tools in a thread pool, so every
+  call is serialised with a lock.
+- **Tool contracts are explicit.** For example `tasks_update_task` requires every field and
+  rejects `null` with a clear message, so the model can't silently wipe a task by omission.
+- **Stateless HTTP.** Each request is independent, which suits scale-to-zero hosting like Cloud Run.
+- **Registration by import.** `@google_mcp.tool` registers a function when its module is imported,
+  so `main.py` is the single place that lists which modules are part of the server.
+
+## Quick start (local)
+
+Needs Python 3.12+, `make`, and a Google account.
+
+1. **Create an OAuth client.** In the [Google Cloud console](https://console.cloud.google.com):
+   create a project, enable the **Google Tasks API**, and create an **OAuth client ID** of type
+   *Desktop app*. Download the JSON as `client_secret.json` in the repo root. Set the app's
+   publishing status to *In production*, otherwise refresh tokens expire after 7 days.
+2. **Install and sign in:**
    ```
-   pip install google-auth-oauthlib
-   python scripts/get_tasks_token.py client_secret.json
+   make deps
+   make env      # opens the browser, generates MCP_SECRET, writes env.yaml
+   make run      # starts the server and prints the URL
    ```
+3. **Connect Claude Code:**
+   ```
+   claude mcp add --transport http keep-tasks http://localhost:8080/<MCP_SECRET>/mcp
+   ```
+   Then ask it to list your task lists.
 
-## 2. Google Keep credentials (optional)
+### Optional: Google Keep
 
-Follow the steps at the top of `scripts/get_keep_token.py`, then:
-```
-pip install gpsoauth
-python scripts/get_keep_token.py you@gmail.com
-```
-
-## 3. Deploy to Google Cloud Run (always reachable, free tier is enough)
-
-Install the gcloud CLI (`winget install Google.CloudSDK`), or use **Cloud Shell** in the console,
-where gcloud is already installed. Then create `env.yaml` (it is git-ignored):
-
-```yaml
-MCP_SECRET: "<python -c "import secrets;print(secrets.token_urlsafe(32))">"
-GOOGLE_CLIENT_ID: "..."
-GOOGLE_CLIENT_SECRET: "..."
-GOOGLE_REFRESH_TOKEN: "..."
-KEEP_EMAIL: "you@gmail.com"
-KEEP_MASTER_TOKEN: "aas_et/..."
-```
+Google offers no Keep API for personal accounts. `gkeepapi` reverse-engineers the Android app
+using a master token that grants broad access to your Google account, and Google can break it at
+any time. Treat that token like a password. Keep is opt-in: leave `KEEP_*` unset and the Keep
+tools simply report that Keep isn't configured.
 
 ```
-gcloud auth login
-gcloud config set project <your-project-id>
+make env-keep   # walks you through getting the master token
+```
+
+## Deploy to Google Cloud Run
+
+```
+make gcloud-install
+make gcloud-setup PROJECT=<your-project-id>   # login + enable APIs (billing must be linked)
+
 gcloud run deploy keep-tasks-mcp --source . --region europe-west1 \
   --allow-unauthenticated --env-vars-file env.yaml --max-instances 1 --memory 512Mi
+
+make url PROJECT=<your-project-id>            # prints the connector URL
 ```
 
-Cloud Build builds the Dockerfile remotely, so you don't need Docker running locally. The command prints
-`https://keep-tasks-mcp-xxxx.a.run.app`.
-
-## 4. Add to Claude
-
-claude.ai → **Settings → Connectors → Add custom connector**:
-URL = `https://keep-tasks-mcp-xxxx.a.run.app/<MCP_SECRET>/mcp`
-
-Connectors added on claude.ai also work in the Claude desktop and mobile apps. For Claude Code:
-```
-claude mcp add --transport http keep-tasks https://keep-tasks-mcp-xxxx.a.run.app/<MCP_SECRET>/mcp
-```
+Cloud Build builds the `Dockerfile` remotely, so Docker doesn't need to be running locally. Add the
+printed URL in claude.ai under **Settings -> Connectors -> Add custom connector**.
 
 ## Security model
 
-The URL secret is the only protection, so don't share the URL. To rotate it, change `MCP_SECRET`
-and redeploy. If you want real per-user sign-in, put it behind FastMCP's `GoogleProvider` OAuth.
+- The service is public and the only protection is the secret in the URL path
+  (`/<MCP_SECRET>/mcp`, 24+ random characters). Don't share the URL. To rotate it, change
+  `MCP_SECRET` and redeploy.
+- Credentials live in `env.yaml` / `.env`, both git-ignored. They are passed to Cloud Run as
+  environment variables.
+- This is a personal-use setup. For multiple users, put real sign-in in front of it, for example
+  FastMCP's `GoogleProvider` OAuth.
 
-## Run locally
+## Tech Stack
 
-```
-pip install -r requirements.txt
-# set the env vars from .env.example, then:
-python server.py      # http://localhost:8080/<MCP_SECRET>/mcp
-```
+Python, [FastMCP](https://gofastmcp.com), Google API Python client, `gkeepapi`, Docker, Google Cloud Run.
+
+## About me
+
+![Grigor Stoyanov](https://user-images.githubusercontent.com/76039296/217279449-93faa114-667a-4183-96cb-60d5393da610.png)
+
+**Grigor Stoyanov**: [LinkedIn](https://www.linkedin.com/in/grigor-stoyanov-b5ab791aa/?isSelfProfile=true) · [GitHub](https://github.com/grigor-stoyanov)
+
+## License
+
+[MIT](LICENSE)
