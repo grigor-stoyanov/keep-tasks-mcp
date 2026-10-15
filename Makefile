@@ -16,7 +16,7 @@ help:
 deps:
 	$(PYTHON) -m pip install -r requirements.txt google-auth-oauthlib gpsoauth
 
-# Browser login for Google Tasks + generates MCP_SECRET -> env.yaml
+# Browser login for Google Tasks + Gmail, generates MCP_SECRET -> env.yaml
 env:
 	$(PYTHON) scripts/setup_env.py login
 
@@ -33,7 +33,7 @@ gcloud-install:
 # Login and enable the APIs. The project needs billing linked.
 gcloud-setup:
 	gcloud auth login
-	gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com tasks.googleapis.com $(PROJECT_FLAG)
+	gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com tasks.googleapis.com gmail.googleapis.com $(PROJECT_FLAG)
 
 url:
 	$(PYTHON) scripts/setup_env.py url --service $(SERVICE) --region $(REGION) --project "$(PROJECT)"

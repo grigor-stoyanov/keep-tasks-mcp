@@ -1,7 +1,7 @@
 """Create and manage env.yaml (the secrets for the MCP server). Driven by the Makefile.
 
 Subcommands:
-  login  Sign in to Google in the browser, generate MCP_SECRET, write env.yaml (Google Tasks)
+  login  Sign in to Google in the browser, generate MCP_SECRET, write env.yaml (Google Tasks + Gmail)
   keep   Add a Google Keep master token to env.yaml (optional, unofficial)
   run    Load env.yaml and start the server locally
   url    Print the connector URL of the deployed Cloud Run service
@@ -23,7 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ENV_FILE = ROOT / "env.yaml"
 CLIENT_FILE = ROOT / "client_secret.json"
-TASKS_SCOPES = ["https://www.googleapis.com/auth/tasks"]
+# One refresh token for both services; each client requests only its own scope from it
+SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.modify"]
 
 
 def load_env() -> dict:
@@ -46,7 +47,7 @@ def login(args) -> None:
 
     if not CLIENT_FILE.exists():
         sys.exit(f"Missing {CLIENT_FILE.name}. See the top of scripts/setup_env.py for how to get it.")
-    flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT_FILE), TASKS_SCOPES)
+    flow = InstalledAppFlow.from_client_secrets_file(str(CLIENT_FILE), SCOPES)
     creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
     client = json.loads(CLIENT_FILE.read_text(encoding="utf-8"))["installed"]
 
@@ -56,7 +57,7 @@ def login(args) -> None:
     env["GOOGLE_CLIENT_SECRET"] = client["client_secret"]
     env["GOOGLE_REFRESH_TOKEN"] = creds.refresh_token
     save_env(env)
-    print(f"Wrote {ENV_FILE.name} (Google Tasks ready).")
+    print(f"Wrote {ENV_FILE.name} (Google Tasks and Gmail ready).")
 
 
 def keep(args) -> None:

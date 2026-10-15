@@ -1,11 +1,11 @@
 # Privacy Policy
 
-_Last updated: 2026-10-13_
+_Last updated: 2026-10-14_
 
 ## What this is
 
 Keep Tasks MCP is a small open-source tool for **personal use**. It lets an AI assistant that you
-connect to it read and manage your own Google Tasks and Google Keep notes. It is not a hosted
+connect to it read and manage your own Google Tasks and Google Keep notes, and clean up your Gmail. It is not a hosted
 service and has no user accounts. Anyone who uses it runs their own copy, with their own Google
 credentials, on their own computer or their own Google Cloud project.
 
@@ -16,6 +16,8 @@ The author does not operate a server that receives your data and cannot see it.
 When you sign in with Google and grant access, the tool can:
 
 - **Google Tasks**: read, create, update and delete your task lists and tasks.
+- **Gmail**: search your mail, read message headers (sender, subject, date, unsubscribe link) and
+  move messages to and from Trash. It does not read message bodies, send mail, or permanently delete.
 - **Google Keep** (optional, via an unofficial library): read, create, edit, archive and trash your notes
   and checklists.
 
@@ -25,7 +27,7 @@ It only does these things when the AI assistant you connected asks it to, in res
 
 - **Credentials** (a Google refresh token and, if you enable Keep, a Keep master token) are stored as
   environment variables in your own deployment, or in a local `env.yaml` file on your computer.
-- **Your tasks and notes** are not copied into any database, file or log by this tool. They pass through
+- **Your tasks, notes and email** are not copied into any database, file or log by this tool. They pass through
   to the AI assistant you connected, and nowhere else.
 - **Platform logs.** If you deploy to Google Cloud Run, Google's platform keeps standard request
   logs for your project. That is controlled by you, in your Google Cloud project.
@@ -51,7 +53,7 @@ including the Limited Use requirements. Data is used only to provide the feature
 ## Security note
 
 Anyone who has your connector URL, or your Google refresh token or Keep master token, can access your
-tasks and notes. Keep them private. The Keep master token grants broad access to your Google account.
+tasks, notes and email. Keep them private. The Keep master token grants broad access to your Google account.
 
 ## Contact
 
