@@ -12,7 +12,9 @@ from server import google_mcp
 def register(accounts: OutlookAccounts) -> None:
     @google_mcp.tool(annotations=WRITE)
     async def outlook_connect() -> dict:
-        """Start linking the user's Outlook.com account (read-only access to mail and calendar).
+        """Start linking the user's Outlook.com account (mail, calendar and Microsoft To Do).
+
+        Also use it when an Outlook tool says the sign-in needs new permissions.
 
         Show the user the link and code from the response. After they say they have signed in,
         call outlook_connect_finish."""
