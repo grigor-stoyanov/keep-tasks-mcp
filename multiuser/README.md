@@ -81,7 +81,15 @@ redirects to Claude's [install link](https://claude.com/docs/connectors/building
 which opens *Add custom connector* with the name and URL already filled in; the friend only clicks
 Add, then Connect. The /join page has the same **Add to Claude** button, and an **Ask it in Claude**
 button that opens a new chat with the first question typed in. Custom connectors work on Claude's
-Free plan too (one per account). Other apps have no such link, so the page shows their steps.
+Free plan too (one per account).
+
+ChatGPT and Gemini have no link that fills in a connector, so the page does the next best thing:
+
+- **Add to ChatGPT** copies the connector URL and opens `chatgpt.com/#settings/Connectors`; the
+  friend pastes it into *Create*. ChatGPT moves its settings around often, so the steps underneath
+  also say where to look. **Ask it in ChatGPT** opens a chat with the first question typed in.
+- **Copy Gemini CLI command** copies `gemini mcp add keep-tasks <url> --transport http --scope user`;
+  after running it they type `/mcp auth keep-tasks` in gemini to sign in.
 
 The **/join page** is public and served by the server itself: the connector URL with a copy
 button, the features this server shares, step-by-step setup for Claude, ChatGPT, Claude Code and

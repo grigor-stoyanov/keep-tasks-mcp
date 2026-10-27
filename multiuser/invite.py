@@ -3,7 +3,6 @@
 Pure functions with no server imports, so share.py can build the invite without starting anything.
 """
 import html
-import json
 from urllib.parse import quote, urlencode
 
 CONNECTOR_NAME = "keep-tasks"
@@ -56,10 +55,23 @@ def claude_first_chat_link() -> str:
     return f"https://claude.ai/new?q={quote(FIRST_PROMPT)}"
 
 
+# ChatGPT has no link that fills in a connector, so its button copies the URL, then opens settings.
+CHATGPT_SETTINGS = "https://chatgpt.com/#settings/Connectors"
+
+
+def chatgpt_first_chat_link() -> str:
+    """A new ChatGPT chat with the first question already typed in."""
+    return f"https://chatgpt.com/?q={quote(FIRST_PROMPT)}"
+
+
+def gemini_command(public_url: str) -> str:
+    """One command that adds the connector to Gemini CLI for every project."""
+    return f"gemini mcp add {CONNECTOR_NAME} {connector_url(public_url)} --transport http --scope user"
+
+
 def setup_steps(public_url: str) -> list[dict]:
     """How to add the connector in each app, for the join page."""
     url = connector_url(public_url)
-    gemini_config = json.dumps({"mcpServers": {CONNECTOR_NAME: {"httpUrl": url}}}, indent=2)
     return [
         {
             "app": "Claude (web, desktop, mobile)",
@@ -75,8 +87,9 @@ def setup_steps(public_url: str) -> list[dict]:
             "note": "Needs Developer mode, which OpenAI offers on paid plans only (fully on Business, "
                     "Enterprise and Edu; Plus and Pro may be limited to read-only tools). Not on Free.",
             "steps": [
-                "Open Settings, then Apps (or Apps & Connectors), then Advanced settings, and turn on Developer mode.",
-                "Create a new app or connector, paste the connector URL and choose OAuth.",
+                "Click Add to ChatGPT above. It copies the connector URL and opens ChatGPT's settings.",
+                "If you haven't yet, turn on Developer mode: Apps (or Connectors), then Advanced settings.",
+                "Click Create (or Add app), paste the URL with Ctrl+V or long-press, choose OAuth, and save.",
                 "Sign in with your Google account when asked.",
             ],
         },
@@ -88,8 +101,8 @@ def setup_steps(public_url: str) -> list[dict]:
         {
             "app": "Gemini CLI",
             "note": "The personal Gemini app can't add connectors; the free Gemini CLI can.",
-            "code": gemini_config,
-            "steps": ["Add this to ~/.gemini/settings.json, start gemini and run /mcp auth keep-tasks to sign in."],
+            "code": gemini_command(public_url),
+            "steps": [f"Run this in a terminal, start gemini, then type /mcp auth {CONNECTOR_NAME} to sign in."],
         },
     ]
 
@@ -102,7 +115,7 @@ def invite_message(public_url: str, owner_email: str, services: frozenset[str], 
         f"your AI app (Claude works best, ChatGPT on paid plans) can do this for you:\n\n"
         f"{features}\n\n"
         f"Using Claude? One click adds it: {add_to_claude_link(public_url)}\n"
-        f"Other apps, and step-by-step help: {public_url.rstrip('/')}/join\n\n"
+        f"ChatGPT or Gemini CLI? Buttons and steps here: {public_url.rstrip('/')}/join\n\n"
         f"Then ask it: \"{FIRST_PROMPT}\"\n\n"
         f"It signs in with your own Google account, and you can untick anything you don't want to "
         f"share. You get {daily_calls} actions a day. Questions: {owner_email}"
@@ -148,23 +161,33 @@ summary {{ font-weight:600; cursor:pointer }} ol {{ padding-left:20px; margin:10
 .note {{ color:var(--muted); font-size:.9rem; margin:10px 0 0 }}
 .cta {{ display:inline-block; padding:12px 20px; border-radius:10px; background:var(--accent); color:var(--on-accent); font-weight:600; text-decoration:none }}
 .cta.secondary {{ background:transparent; color:var(--accent); border:1px solid var(--accent); padding:9px 16px; font-weight:500 }}
+.ctas {{ display:flex; flex-wrap:wrap; gap:10px; margin:16px 0 }}
+button.cta {{ font-size:1rem }}
 .hint {{ color:var(--muted); font-size:.9rem; margin:0 0 8px }}
 footer {{ color:var(--muted); font-size:.85rem; margin-top:28px }} a {{ color:var(--accent) }}
 </style></head><body><main>
 <h1>You're invited to Keep Tasks</h1>
 <p class=lead>A connector that lets your AI assistant work with your own Google Tasks, Gmail and Outlook. Invite only.</p>
-<p><a class=cta href="{esc(claude_install_link(public_url))}" target=_blank rel=noopener>Add to Claude</a></p>
-<p class=hint>Opens Claude with everything filled in, you just click Add. Using another app? Copy the URL:</p>
+<div class=ctas>
+<a class=cta href="{esc(claude_install_link(public_url))}" target=_blank rel=noopener>Add to Claude</a>
+<a class=cta href="{CHATGPT_SETTINGS}" data-copy="{esc(url)}" data-done="URL copied, paste it in ChatGPT" target=_blank rel=noopener>Add to ChatGPT</a>
+<button class="cta secondary" data-copy="{esc(gemini_command(public_url))}" data-done="Copied, run it in a terminal">Copy Gemini CLI command</button>
+</div>
+<p class=hint>Claude opens with everything filled in, you just click Add. ChatGPT opens its settings with the URL copied, ready to paste. Steps for each app are below. Or copy the URL:</p>
 <div class="card copy"><pre id=url>{esc(url)}</pre><button data-copy="{esc(url)}">Copy URL</button></div>
 <h2>What you can do</h2><ul class=features>{features}</ul>
 <h2>Add it to your AI app</h2>{apps}
 <h2>Then ask</h2><div class="card copy"><pre>{esc(FIRST_PROMPT)}</pre><button data-copy="{esc(FIRST_PROMPT)}">Copy</button></div>
-<p><a class="cta secondary" href="{esc(claude_first_chat_link())}" target=_blank rel=noopener>Ask it in Claude</a></p>
+<div class=ctas>
+<a class="cta secondary" href="{esc(claude_first_chat_link())}" target=_blank rel=noopener>Ask it in Claude</a>
+<a class="cta secondary" href="{esc(chatgpt_first_chat_link())}" target=_blank rel=noopener>Ask it in ChatGPT</a>
+</div>
 <footer>You sign in with your own Google account and only share what you tick. Run by {esc(owner_email)}.
 <a href="https://github.com/grigor-stoyanov/keep-tasks-mcp/blob/master/PRIVACY.md#the-shared-server-if-a-friend-invited-you">Privacy</a> ·
 <a href="https://github.com/grigor-stoyanov/keep-tasks-mcp/blob/master/TERMS.md#5-shared-servers">Terms</a></footer>
 </main><script>
-document.querySelectorAll("button[data-copy]").forEach(b => b.addEventListener("click", async () => {{
-  try {{ await navigator.clipboard.writeText(b.dataset.copy); const t = b.textContent; b.textContent = "Copied"; setTimeout(() => b.textContent = t, 1500); }} catch (e) {{}}
+// Links with data-copy (Add to ChatGPT) copy first, then open as usual.
+document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {{
+  try {{ await navigator.clipboard.writeText(b.dataset.copy); const t = b.textContent; b.textContent = b.dataset.done || "Copied"; setTimeout(() => b.textContent = t, 4000); }} catch (e) {{}}
 }}));
 </script></body></html>"""
