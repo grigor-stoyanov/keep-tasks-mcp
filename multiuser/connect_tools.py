@@ -4,12 +4,13 @@ Sign-in to the server is Google only, so Outlook is linked separately, once, wit
 device-code flow: the user opens a link, enters a code, and the model then calls outlook_connect_finish.
 """
 from access import caller_email
+from constants.tool_annotations import WRITE
 from per_user import OutlookAccounts
 from server import google_mcp
 
 
 def register(accounts: OutlookAccounts) -> None:
-    @google_mcp.tool
+    @google_mcp.tool(annotations=WRITE)
     async def outlook_connect() -> dict:
         """Start linking the user's Outlook.com account (read-only access to mail and calendar).
 
@@ -22,7 +23,7 @@ def register(accounts: OutlookAccounts) -> None:
             "expires_in_minutes": int(flow.get("expires_in", 900)) // 60,
         }
 
-    @google_mcp.tool
+    @google_mcp.tool(annotations=WRITE)
     async def outlook_connect_finish() -> dict:
         """Finish linking Outlook after the user has entered the code from outlook_connect."""
         if await accounts.finish_connect(caller_email()):
@@ -30,7 +31,7 @@ def register(accounts: OutlookAccounts) -> None:
             return {"linked": True, "next": "Tell the user to start a new chat to use their Outlook tools."}
         return {"linked": False, "hint": "The code hasn't been entered yet. Ask the user to finish, then call this again."}
 
-    @google_mcp.tool
+    @google_mcp.tool(annotations=WRITE)
     async def outlook_disconnect() -> dict:
         """Unlink the user's Outlook account and delete its stored token from this server."""
         return {"unlinked": await accounts.disconnect(caller_email())}

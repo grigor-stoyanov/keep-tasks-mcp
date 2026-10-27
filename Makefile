@@ -11,7 +11,7 @@ FRIENDS_SERVICE ?= keep-tasks-friends
 GCP_PROJECT = $(or $(PROJECT),$(shell gcloud config get-value project))
 FRIENDS_IMAGE = $(REGION)-docker.pkg.dev/$(GCP_PROJECT)/cloud-run-source-deploy/$(FRIENDS_SERVICE)
 
-.PHONY: help deps env env-keep env-outlook run gcloud-install gcloud-setup deploy url friends-setup deploy-friends
+.PHONY: help deps env env-keep env-outlook run gcloud-install gcloud-setup deploy url friends-setup deploy-friends share-friends
 
 help:
 	@echo First time:  make deps, make env, then make run to test locally
@@ -61,3 +61,7 @@ friends-setup:
 deploy-friends:
 	gcloud builds submit --config multiuser/cloudbuild.yaml --substitutions _IMAGE=$(FRIENDS_IMAGE) $(PROJECT_FLAG)
 	gcloud run deploy $(FRIENDS_SERVICE) --image $(FRIENDS_IMAGE) --region $(REGION) --allow-unauthenticated --env-vars-file multiuser/env.yaml --max-instances 1 --concurrency 20 --memory 512Mi $(PROJECT_FLAG)
+
+# Invite text for friends, linking to the server's /join page. ARGS="--name Alex --preview"
+share-friends:
+	$(PYTHON) multiuser/share.py $(ARGS)

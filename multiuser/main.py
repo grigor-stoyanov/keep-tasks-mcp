@@ -20,6 +20,7 @@ store = build_store(settings)
 outlook_accounts = per_user.install(store, settings)
 
 import connect_tools  # noqa: E402
+import onboarding  # noqa: E402
 import tools.gmail_tools  # noqa: E402, F401
 import tools.keep_tools  # noqa: E402, F401
 import tools.outlook_tools  # noqa: E402, F401
@@ -27,6 +28,7 @@ import tools.task_tools  # noqa: E402, F401
 from server import google_mcp  # noqa: E402
 
 connect_tools.register(outlook_accounts)
+onboarding.register(settings, store)
 google_mcp.auth = build_auth(settings, store)
 google_mcp.add_middleware(AccessPolicy(settings, store))
 
