@@ -3,6 +3,7 @@ import os
 from server import google_mcp
 import tools.gmail_tools  # noqa: F401
 import tools.keep_tools  # noqa: F401
+import tools.outlook_tools  # noqa: F401
 import tools.task_tools  # noqa: F401
 
 if __name__ == "__main__":

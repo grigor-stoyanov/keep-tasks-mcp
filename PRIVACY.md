@@ -20,12 +20,16 @@ When you sign in with Google and grant access, the tool can:
   move messages to and from Trash. It does not read message bodies, send mail, or permanently delete.
 - **Google Keep** (optional, via an unofficial library): read, create, edit, archive and trash your notes
   and checklists.
+- **Outlook.com** (optional, via Microsoft Graph): list, search and read your mail (including message
+  bodies), mail folders, attachment names and calendar events. Its access is read-only: it cannot send,
+  move, delete or change anything.
 
 It only does these things when the AI assistant you connected asks it to, in response to your requests.
 
 ## What is stored and where
 
-- **Credentials** (a Google refresh token and, if you enable Keep, a Keep master token) are stored as
+- **Credentials** (a Google refresh token and, if you enable them, a Keep master token and a Microsoft
+  refresh token) are stored as
   environment variables in your own deployment, or in a local `env.yaml` file on your computer.
 - **Your tasks, notes and email** are not copied into any database, file or log by this tool. They pass through
   to the AI assistant you connected, and nowhere else.
@@ -46,7 +50,8 @@ including the Limited Use requirements. Data is used only to provide the feature
 
 ## Your control
 
-- **Revoke access** at any time at <https://myaccount.google.com/permissions>.
+- **Revoke access** at any time at <https://myaccount.google.com/permissions> (Google) and
+  <https://account.live.com/consent/Manage> (Microsoft).
 - **Delete everything** by deleting your deployment and your local `env.yaml`.
 - **Rotate the connector URL** by changing `MCP_SECRET` and redeploying.
 

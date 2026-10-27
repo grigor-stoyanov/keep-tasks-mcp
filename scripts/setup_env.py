@@ -2,8 +2,9 @@
 
 Subcommands:
   login  Sign in to Google in the browser, generate MCP_SECRET, write env.yaml (Google Tasks + Gmail)
-  keep   Add a Google Keep master token to env.yaml (optional, unofficial)
-  run    Load env.yaml and start the server locally
+  keep     Add a Google Keep master token to env.yaml (optional, unofficial)
+  outlook  Sign in to a personal Microsoft account, add an Outlook refresh token to env.yaml (optional)
+  run      Load env.yaml and start the server locally
   url    Print the connector URL of the deployed Cloud Run service
 
 Needs client_secret.json in the repo root: Google Cloud console -> APIs & Services -> Credentials
@@ -25,6 +26,9 @@ ENV_FILE = ROOT / "env.yaml"
 CLIENT_FILE = ROOT / "client_secret.json"
 # One refresh token for both services; each client requests only its own scope from it
 SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.modify"]
+# Must match src/constants/outlook_consts.py
+OUTLOOK_SCOPES = ["Mail.Read", "Calendars.Read", "User.Read"]
+OUTLOOK_AUTHORITY = "https://login.microsoftonline.com/consumers"
 
 
 def load_env() -> dict:
@@ -78,6 +82,25 @@ def keep(args) -> None:
     print(f"Wrote Keep credentials to {ENV_FILE.name}.")
 
 
+def outlook(args) -> None:
+    import msal
+
+    env = load_env()
+    client_id = env.get("OUTLOOK_CLIENT_ID") or input("Azure app registration's Application (client) ID: ").strip()
+    app = msal.PublicClientApplication(client_id, authority=OUTLOOK_AUTHORITY)
+    flow = app.initiate_device_flow(scopes=OUTLOOK_SCOPES)
+    if "user_code" not in flow:
+        sys.exit(f"Failed to start sign-in: {flow.get('error_description', flow)}")
+    print(flow["message"])
+    result = app.acquire_token_by_device_flow(flow)
+    if "refresh_token" not in result:
+        sys.exit(f"Sign-in failed: {result.get('error_description', result)}")
+    env["OUTLOOK_CLIENT_ID"] = client_id
+    env["OUTLOOK_REFRESH_TOKEN"] = result["refresh_token"]
+    save_env(env)
+    print(f"Wrote Outlook credentials to {ENV_FILE.name}.")
+
+
 def run(args) -> None:
     env = load_env()
     if "MCP_SECRET" not in env:
@@ -109,6 +132,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("login").set_defaults(func=login)
     sub.add_parser("keep").set_defaults(func=keep)
+    sub.add_parser("outlook").set_defaults(func=outlook)
     sub.add_parser("run").set_defaults(func=run)
     p = sub.add_parser("url")
     p.add_argument("--service", required=True)

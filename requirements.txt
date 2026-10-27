@@ -2,3 +2,6 @@ fastmcp==4.1.0
 google-api-python-client==2.201.0
 google-auth==2.*
 gkeepapi==0.17.1
+# Outlook tools are reused from this package (https://github.com/salahawad/outlook-personal-mcp)
+mcp-outlook-personal==0.1.1
+msal==1.*

@@ -1,7 +1,8 @@
 # Google Keep + Tasks MCP Server
 
 A remote [Model Context Protocol](https://modelcontextprotocol.io) server that lets an AI assistant
-read and manage my **Google Tasks** and **Google Keep** notes, and bulk-clean my **Gmail**. It runs over Streamable HTTP, so it
+read and manage my **Google Tasks** and **Google Keep** notes, bulk-clean my **Gmail**, and read my
+**Outlook.com** mail and calendar. It runs over Streamable HTTP, so it
 can be added to Claude as a custom connector and used from the desktop and mobile apps.
 
 I built it to learn how MCP servers work end to end: tool design, auth, deployment, and keeping a
@@ -9,13 +10,14 @@ codebase small enough to extend without fear.
 
 ## What it does
 
-17 tools, grouped by service:
+27 tools, grouped by service:
 
 | Service | Tools |
 |---|---|
 | **Google Tasks** (official API) | `tasks_list_tasklists`, `tasks_create_tasklist`, `tasks_list_tasks`, `tasks_create_task`, `tasks_update_task`, `tasks_delete_task`, `tasks_get_task_by_title` |
 | **Google Keep** (unofficial, `gkeepapi`) | `keep_search_notes`, `keep_get_note`, `keep_create_note`, `keep_create_list`, `keep_update_note`, `keep_update_list`, `keep_trash_note` |
 | **Gmail** (official API) | `gmail_top_senders`, `gmail_bulk_trash`, `gmail_restore_from_trash` |
+| **Outlook.com** (Microsoft Graph, read-only, reused from [`outlook-personal-mcp`](https://github.com/salahawad/outlook-personal-mcp)) | `outlook_list_folders`, `outlook_list_messages`, `outlook_search_messages`, `outlook_get_message`, `outlook_list_attachments`, `outlook_list_calendars`, `outlook_list_events`, `outlook_search_events`, `outlook_get_event`, `outlook_find_availability` |
 
 Example prompts: *"What's due this week?"*, *"Add a checklist called Groceries with milk, eggs and bread"*,
 *"Move everything labelled work to archived"*,
@@ -31,10 +33,12 @@ src/
     task_tools.py
     keep_tools.py
     gmail_tools.py
-  clients/           one class per Google service: auth, locking, raw calls
+    outlook_tools.py registers outlook-personal-mcp's read-only tools on this server
+  clients/           one class per service: auth, locking, raw calls
     task_client.py
     keep_client.py
     gmail_client.py
+    outlook_client.py  refresh-token auth for outlook-personal-mcp's Graph client
   utils/             pure helpers (date parsing, paging, response views)
   constants/         OAuth scopes
 ```
@@ -63,6 +67,14 @@ beyond raising `ToolError`.
 - **Stateless HTTP.** Each request is independent, which suits scale-to-zero hosting like Cloud Run.
 - **Registration by import.** `@google_mcp.tool` registers a function when its module is imported,
   so `main.py` is the single place that lists which modules are part of the server.
+- **Reuse instead of rewriting Outlook.** The Outlook tools come from the
+  [`outlook-personal-mcp`](https://github.com/salahawad/outlook-personal-mcp) package (MIT), pinned
+  in `requirements.txt`. Its tools are defined inside `register(mcp, client)` functions, so
+  `outlook_tools.py` calls them with a small stand-in for the server that keeps only the tools
+  marked `readOnlyHint=True` and registers them here with an `outlook_` prefix. No fork and no
+  second connector. The only thing replaced is auth: upstream keeps a token cache file on disk,
+  which doesn't survive Cloud Run, so `outlook_client.py` signs in from a refresh token in an env
+  var, like the Google clients do.
 
 ## Quick start (local)
 
@@ -108,6 +120,24 @@ tools simply report that Keep isn't configured.
 make env-keep   # walks you through getting the master token
 ```
 
+### Optional: Outlook.com (read-only)
+
+Works with personal Microsoft accounts (outlook.com, hotmail.com, live.com). The token only has
+`Mail.Read`, `Calendars.Read` and `User.Read`, so even a misbehaving model can't send, move or
+delete anything. Leave `OUTLOOK_*` unset and the Outlook tools report that Outlook isn't configured.
+1. **Register an app.** In the [Azure portal](https://portal.azure.com) -> *Microsoft Entra ID* ->
+   *App registrations* -> *New registration*. Supported account types: *Personal Microsoft accounts
+   only*. No redirect URI. Then under *Authentication*, set *Allow public client flows* to **Yes**.
+   Copy the *Application (client) ID*. No client secret is needed.
+2. **Sign in:**
+   ```
+   make env-outlook   # asks for the client ID, then prints a code to enter at microsoft.com/devicelogin
+   ```
+   Redeploy afterwards so Cloud Run gets the new env vars.
+
+Microsoft refresh tokens last about 90 days. When the Outlook tools start reporting a sign-in
+failure, run `make env-outlook` again and redeploy.
+
 ## Deploy to Google Cloud Run
 
 ```
@@ -135,7 +165,8 @@ printed URL in claude.ai under **Settings -> Connectors -> Add custom connector*
 
 ## Tech Stack
 
-Python, [FastMCP](https://gofastmcp.com), Google API Python client (Tasks, Gmail), `gkeepapi`, Docker, Google Cloud Run.
+Python, [FastMCP](https://gofastmcp.com), Google API Python client (Tasks, Gmail), `gkeepapi`,
+Microsoft Graph via `outlook-personal-mcp` and MSAL, Docker, Google Cloud Run.
 
 ## About me
 
