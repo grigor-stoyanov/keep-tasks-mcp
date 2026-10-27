@@ -144,8 +144,7 @@ failure, run `make env-outlook` again and redeploy.
 make gcloud-install
 make gcloud-setup PROJECT=<your-project-id>   # login + enable APIs (billing must be linked)
 
-gcloud run deploy keep-tasks-mcp --source . --region europe-west1 \
-  --allow-unauthenticated --env-vars-file env.yaml --max-instances 1 --memory 512Mi
+make deploy                                   # also how you redeploy: same service, same URL
 
 make url PROJECT=<your-project-id>            # prints the connector URL
 ```

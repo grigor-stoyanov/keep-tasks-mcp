@@ -6,11 +6,11 @@ PROJECT ?=
 
 PROJECT_FLAG = $(if $(PROJECT),--project $(PROJECT),)
 
-.PHONY: help deps env env-keep env-outlook run gcloud-install gcloud-setup url
+.PHONY: help deps env env-keep env-outlook run gcloud-install gcloud-setup deploy url
 
 help:
 	@echo First time:  make deps, make env, then make run to test locally
-	@echo Cloud:       make gcloud-install, make gcloud-setup PROJECT=id, then deploy, then make url PROJECT=id
+	@echo Cloud:       make gcloud-install, make gcloud-setup PROJECT=id, make deploy, then make url PROJECT=id
 	@echo Optional:    make env-keep adds Google Keep, make env-outlook adds Outlook.com (read-only)
 
 deps:
@@ -38,6 +38,11 @@ gcloud-install:
 gcloud-setup:
 	gcloud auth login
 	gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com tasks.googleapis.com gmail.googleapis.com $(PROJECT_FLAG)
+
+# Build remotely with Cloud Build and roll out a new revision of the same service (URL stays the same).
+# --env-vars-file replaces all env vars with the contents of env.yaml.
+deploy:
+	gcloud run deploy $(SERVICE) --source . --region $(REGION) --allow-unauthenticated --env-vars-file env.yaml --max-instances 1 --memory 512Mi $(PROJECT_FLAG)
 
 url:
 	$(PYTHON) scripts/setup_env.py url --service $(SERVICE) --region $(REGION) --project "$(PROJECT)"
