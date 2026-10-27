@@ -4,6 +4,7 @@ Pure functions with no server imports, so share.py can build the invite without 
 """
 import html
 import json
+from urllib.parse import quote, urlencode
 
 CONNECTOR_NAME = "keep-tasks"
 FIRST_PROMPT = "What can my new keep-tasks connector do for me?"
@@ -38,6 +39,23 @@ def connector_url(public_url: str) -> str:
     return f"{public_url.rstrip('/')}/mcp"
 
 
+def claude_install_link(public_url: str) -> str:
+    """Opens claude.ai's Add custom connector dialog with the name and URL filled in; the user
+    just confirms. https://claude.com/docs/connectors/building/directory-vs-custom#share-an-install-link"""
+    query = urlencode({"modal": "add-custom-connector", "connectorName": CONNECTOR_NAME, "connectorUrl": connector_url(public_url)})
+    return f"https://claude.ai/customize/connectors?{query}"
+
+
+def add_to_claude_link(public_url: str) -> str:
+    """A short link on this server that redirects to claude_install_link, easy to paste in a chat."""
+    return f"{public_url.rstrip('/')}/add-to-claude"
+
+
+def claude_first_chat_link() -> str:
+    """A new Claude chat with the first question already typed in."""
+    return f"https://claude.ai/new?q={quote(FIRST_PROMPT)}"
+
+
 def setup_steps(public_url: str) -> list[dict]:
     """How to add the connector in each app, for the join page."""
     url = connector_url(public_url)
@@ -46,8 +64,8 @@ def setup_steps(public_url: str) -> list[dict]:
         {
             "app": "Claude (web, desktop, mobile)",
             "steps": [
-                "Open Settings, then Connectors, then Add custom connector.",
-                "Paste the connector URL and click Add, then Connect.",
+                "Click Add to Claude above. Claude opens with the connector filled in: click Add, then Connect. "
+                "(Or by hand: Customize, then Connectors, then Add custom connector, and paste the URL.)",
                 "Sign in with your Google account. Google warns that the app is unverified: "
                 "choose Advanced, then continue. Untick anything you don't want to share.",
             ],
@@ -83,8 +101,8 @@ def invite_message(public_url: str, owner_email: str, services: frozenset[str], 
         f"Hi{' ' + name if name else ''}! I've set you up on my AI assistant connector. Once it's added, "
         f"your AI app (Claude works best, ChatGPT on paid plans) can do this for you:\n\n"
         f"{features}\n\n"
-        f"Set it up in 2 minutes: {public_url.rstrip('/')}/join\n"
-        f"(or add this connector URL yourself: {connector_url(public_url)})\n\n"
+        f"Using Claude? One click adds it: {add_to_claude_link(public_url)}\n"
+        f"Other apps, and step-by-step help: {public_url.rstrip('/')}/join\n\n"
         f"Then ask it: \"{FIRST_PROMPT}\"\n\n"
         f"It signs in with your own Google account, and you can untick anything you don't want to "
         f"share. You get {daily_calls} actions a day. Questions: {owner_email}"
@@ -128,14 +146,20 @@ ul.features li {{ background:var(--card); border:1px solid var(--line); border-r
 details {{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px }}
 summary {{ font-weight:600; cursor:pointer }} ol {{ padding-left:20px; margin:10px 0 }}
 .note {{ color:var(--muted); font-size:.9rem; margin:10px 0 0 }}
+.cta {{ display:inline-block; padding:12px 20px; border-radius:10px; background:var(--accent); color:var(--on-accent); font-weight:600; text-decoration:none }}
+.cta.secondary {{ background:transparent; color:var(--accent); border:1px solid var(--accent); padding:9px 16px; font-weight:500 }}
+.hint {{ color:var(--muted); font-size:.9rem; margin:0 0 8px }}
 footer {{ color:var(--muted); font-size:.85rem; margin-top:28px }} a {{ color:var(--accent) }}
 </style></head><body><main>
 <h1>You're invited to Keep Tasks</h1>
 <p class=lead>A connector that lets your AI assistant work with your own Google Tasks, Gmail and Outlook. Invite only.</p>
+<p><a class=cta href="{esc(claude_install_link(public_url))}" target=_blank rel=noopener>Add to Claude</a></p>
+<p class=hint>Opens Claude with everything filled in, you just click Add. Using another app? Copy the URL:</p>
 <div class="card copy"><pre id=url>{esc(url)}</pre><button data-copy="{esc(url)}">Copy URL</button></div>
 <h2>What you can do</h2><ul class=features>{features}</ul>
 <h2>Add it to your AI app</h2>{apps}
 <h2>Then ask</h2><div class="card copy"><pre>{esc(FIRST_PROMPT)}</pre><button data-copy="{esc(FIRST_PROMPT)}">Copy</button></div>
+<p><a class="cta secondary" href="{esc(claude_first_chat_link())}" target=_blank rel=noopener>Ask it in Claude</a></p>
 <footer>You sign in with your own Google account and only share what you tick. Run by {esc(owner_email)}.
 <a href="https://github.com/grigor-stoyanov/keep-tasks-mcp/blob/master/PRIVACY.md#the-shared-server-if-a-friend-invited-you">Privacy</a> ·
 <a href="https://github.com/grigor-stoyanov/keep-tasks-mcp/blob/master/TERMS.md#5-shared-servers">Terms</a></footer>

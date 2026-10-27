@@ -76,6 +76,13 @@ gcloud billing budgets create --billing-account=<BILLING_ACCOUNT_ID> --display-n
 links to `<PUBLIC_URL>/join`, and suggests a first message. `ARGS="--preview"` also opens the page
 locally.
 
+For Claude users the invite leads with **`<PUBLIC_URL>/add-to-claude`**, a one-click link. It
+redirects to Claude's [install link](https://claude.com/docs/connectors/building/directory-vs-custom#share-an-install-link),
+which opens *Add custom connector* with the name and URL already filled in; the friend only clicks
+Add, then Connect. The /join page has the same **Add to Claude** button, and an **Ask it in Claude**
+button that opens a new chat with the first question typed in. Custom connectors work on Claude's
+Free plan too (one per account). Other apps have no such link, so the page shows their steps.
+
 The **/join page** is public and served by the server itself: the connector URL with a copy
 button, the features this server shares, step-by-step setup for Claude, ChatGPT, Claude Code and
 Gemini CLI, and the first thing to ask.

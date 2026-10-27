@@ -1,5 +1,6 @@
 """Telling friends what they can do: the account_overview tool, a getting_started prompt, the
-server instructions, and the public /join page they open from the invite link (share.py).
+server instructions, the public /join page they open from the invite link (share.py), and
+/add-to-claude, a one-click link that opens Claude's Add connector dialog already filled in.
 
 Features come from the one catalogue in invite.py, so the page, the invite and what the AI says
 stay in sync.
@@ -11,7 +12,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 
 from access import AccessPolicy, allowed_services, caller_email, granted
 from constants.tool_annotations import READ
-from invite import FEATURES, join_page
+from invite import FEATURES, claude_install_link, join_page
 from server import google_mcp
 from settings import Settings
 
@@ -65,6 +66,10 @@ def register(settings: Settings, store: AsyncKeyValue) -> None:
     @google_mcp.custom_route("/", methods=["GET"])
     async def home(request: Request) -> RedirectResponse:
         return RedirectResponse("/join")
+
+    @google_mcp.custom_route("/add-to-claude", methods=["GET"])
+    async def add_to_claude(request: Request) -> RedirectResponse:
+        return RedirectResponse(claude_install_link(settings.public_url))
 
     @google_mcp.custom_route("/join", methods=["GET"])
     async def join(request: Request) -> HTMLResponse:
