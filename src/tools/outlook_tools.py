@@ -20,7 +20,7 @@ class _ReadOnlyRegistrar:
 
     def tool(self, annotations=None):
         def register(fn):
-            if annotations is not None and annotations.readOnlyHint:
+            if annotations is not None and annotations.read_only_hint:
                 google_mcp.tool(fn, name=f"outlook_{fn.__name__}", annotations=annotations)
             return fn
         return register

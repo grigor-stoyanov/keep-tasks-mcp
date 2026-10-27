@@ -2,6 +2,7 @@ import gkeepapi
 from fastmcp.exceptions import ToolError
 
 from clients.keep_client import keep_client
+from constants.tool_annotations import DESTRUCTIVE, READ, WRITE
 from server import google_mcp
 from utils.keep_parser import _note_view
 
@@ -13,7 +14,7 @@ def _get_note(note_id: str):
     return n
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=READ)
 def keep_search_notes(
     query: str | None = None,
     label: str | None = None,
@@ -39,13 +40,13 @@ def keep_search_notes(
     return [_note_view(n, full=False) for n in notes]
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=READ)
 def keep_get_note(note_id: str) -> dict:
     """Get the full content of a Google Keep note or checklist."""
     return _note_view(_get_note(note_id))
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=WRITE)
 def keep_create_note(title: str, text: str = "", label: str | None = None, pinned: bool = False) -> dict:
     """Create a Google Keep text note. The label is created if it doesn't exist."""
     n = keep_client.create_note(title, text)
@@ -56,7 +57,7 @@ def keep_create_note(title: str, text: str = "", label: str | None = None, pinne
     return _note_view(n)
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=WRITE)
 def keep_create_list(title: str, items: list[str], label: str | None = None, pinned: bool = False) -> dict:
     """Create a Google Keep checklist with the given unchecked items."""
     n = keep_client.create_list(title, [(i, False) for i in items])
@@ -67,7 +68,7 @@ def keep_create_list(title: str, items: list[str], label: str | None = None, pin
     return _note_view(n)
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=DESTRUCTIVE)
 def keep_update_note(
     note_id: str,
     title: str | None = None,
@@ -92,7 +93,7 @@ def keep_update_note(
     return _note_view(n)
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=DESTRUCTIVE)
 def keep_update_list(
     note_id: str,
     add_items: list[str] | None = None,
@@ -121,7 +122,7 @@ def keep_update_list(
     return _note_view(n)
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=DESTRUCTIVE)
 def keep_trash_note(note_id: str) -> str:
     """Move a Keep note to the trash (recoverable in Keep for 7 days)."""
     _get_note(note_id).trash()
