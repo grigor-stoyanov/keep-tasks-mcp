@@ -1,6 +1,6 @@
 """Who may use which tools, and how often.
 
-The owner gets every tool with no limits. Friends on the allowlist get FRIEND_SERVICES and
+The owner gets every tool with no limits. Friends on the allowlist (friends.py) get FRIEND_SERVICES and
 FRIEND_DAILY_CALLS successful tool calls per day. Anyone else is turned away at sign-in (auth.py).
 Within that, a user only sees the tools of services they actually granted or linked.
 """
@@ -13,6 +13,7 @@ from key_value.aio.protocols.key_value import AsyncKeyValue
 
 from constants.gmail_consts import GMAIL_SCOPES
 from constants.task_consts import TASKS_SCOPES
+from friends import Friends
 from settings import SERVICES, Settings
 
 USAGE_TTL = 2 * 24 * 3600  # a day's counter only needs to outlive that day
@@ -24,11 +25,11 @@ SERVICE_SCOPES = {"tasks": TASKS_SCOPES[0], "gmail": GMAIL_SCOPES[0]}
 ALWAYS_AVAILABLE = frozenset({"account"})
 
 
-def allowed_services(settings: Settings, email: str) -> frozenset[str]:
+async def allowed_services(settings: Settings, friends: Friends, email: str) -> frozenset[str]:
     """What this person may use at all. Empty means they aren't allowed in."""
     if email and email == settings.owner_email:
         return SERVICES
-    if settings.friends_enabled and email in settings.friend_emails:
+    if settings.friends_enabled and await friends.contains(email):
         return settings.friend_services
     return frozenset()
 
@@ -49,13 +50,14 @@ def granted(service: str) -> bool:
 
 
 class AccessPolicy(Middleware):
-    def __init__(self, settings: Settings, store: AsyncKeyValue):
+    def __init__(self, settings: Settings, store: AsyncKeyValue, friends: Friends):
         self._settings = settings
         self._store = store
+        self._friends = friends
 
     async def on_list_tools(self, context, call_next):
         email = caller_email()
-        allowed = allowed_services(self._settings, email)
+        allowed = await allowed_services(self._settings, self._friends, email)
         visible = allowed | ALWAYS_AVAILABLE if allowed else frozenset()
         tools = [t for t in await call_next(context) if _service(t.name) in visible and granted(_service(t.name))]
         if "outlook" in allowed and not await self._store.get(email, collection="outlook"):
@@ -65,7 +67,7 @@ class AccessPolicy(Middleware):
     async def on_call_tool(self, context, call_next):
         email = caller_email()
         service = _service(context.message.name)
-        allowed = allowed_services(self._settings, email)
+        allowed = await allowed_services(self._settings, self._friends, email)
         if not allowed:
             raise ToolError(f"{email or 'This account'} isn't on this server's allowlist; ask {self._settings.owner_email} to add you")
         if service not in allowed | ALWAYS_AVAILABLE:

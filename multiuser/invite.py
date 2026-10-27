@@ -31,6 +31,11 @@ FEATURES = {
         "what": "Search, create and edit notes and checklists.",
         "try": ["Make a packing checklist for a weekend trip"],
     },
+    "friends": {
+        "title": "Friends (owner only)",
+        "what": "Add and remove the friends who can use this server, and see their usage, without a redeploy.",
+        "try": ["Add alex@gmail.com as a friend and give me the invite", "Who's using my connector today?"],
+    },
 }
 
 

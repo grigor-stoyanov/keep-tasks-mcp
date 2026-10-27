@@ -35,7 +35,7 @@ AI app --(OAuth)--> AllowlistGoogleProvider (auth.py) --> AccessPolicy (access.p
 
 | Guard | Where | Default |
 |---|---|---|
-| Allowlist, checked at sign-in and on every call | `FRIEND_EMAILS` | empty |
+| Allowlist, checked at sign-in and on every call | `friends_add` / `friends_remove` (seeded once from `FRIEND_EMAILS`) | empty |
 | Hard cap on friends, a code change to raise | `MAX_FRIENDS` in `settings.py` | 10 |
 | Successful tool calls (not messages) per friend per day; owner unlimited | `FRIEND_DAILY_CALLS` | 300 |
 | Which services friends get | `FRIEND_SERVICES` | tasks, gmail, outlook |
@@ -67,12 +67,30 @@ gcloud billing budgets create --billing-account=<BILLING_ACCOUNT_ID> --display-n
 3. **Azure app:** reuse the one from `make env-outlook`; it already accepts any personal account.
 4. **Config:** copy `env.example.yaml` to `multiuser/env.yaml` (git-ignored) and fill it in.
 5. **Deploy:** `make deploy-friends`.
-6. **Invite:** add the friend's email to `FRIEND_EMAILS`, redeploy, then run `make share-friends`
-   (optionally `ARGS="--name Alex"`) and send them the text it prints.
+6. **Invite:** connect to the server yourself and ask *"Add alex@gmail.com as a friend"*. The
+   reply includes the invite to send them. See [Managing friends](#managing-friends).
+
+## Managing friends
+
+The allowlist lives in Firestore, so you change it from any chat with the connector, no redeploy.
+These tools are only shown to, and only work for, `OWNER_EMAIL`:
+
+| Tool | What it does |
+|---|---|
+| `friends_list` | Everyone on the list, when they were added, whether Outlook is linked, tool calls today |
+| `friends_add(email, name)` | Adds them (up to `MAX_FRIENDS`) and returns a ready-to-send invite |
+| `friends_remove(email)` | Cuts them off at once and deletes their linked Outlook token |
+
+Try *"Who's using my connector today?"* or *"Remove alex@gmail.com"*.
+
+`FRIEND_EMAILS` only seeds the list the first time the server starts; editing it later does
+nothing. A removed friend's Google sign-in stays in the store but is refused on every request.
+`FRIENDS_ENABLED=false` still cuts everyone off at once.
 
 ## Inviting friends
 
-`make share-friends` prints an invite to paste into a chat or email. It lists what they get,
+`friends_add` returns the invite. `make share-friends` prints the same text from the terminal,
+to paste into a chat or email. It lists what they get,
 links to `<PUBLIC_URL>/join`, and suggests a first message. `ARGS="--preview"` also opens the page
 locally.
 

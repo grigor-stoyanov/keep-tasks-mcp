@@ -12,6 +12,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 
 from access import AccessPolicy, allowed_services, caller_email, granted
 from constants.tool_annotations import READ
+from friends import Friends
 from invite import FEATURES, claude_install_link, join_page
 from server import google_mcp
 from settings import Settings
@@ -24,7 +25,7 @@ INSTRUCTIONS = (
 )
 
 
-def register(settings: Settings, store: AsyncKeyValue) -> None:
+def register(settings: Settings, store: AsyncKeyValue, friends: Friends) -> None:
     google_mcp.instructions = f"{google_mcp.instructions} {INSTRUCTIONS}"
 
     @google_mcp.tool(annotations=READ)
@@ -33,7 +34,7 @@ def register(settings: Settings, store: AsyncKeyValue) -> None:
         services they could still enable and how, and their usage today. Call it when the user
         first connects or asks what this can do, then explain it to them in plain words."""
         email = caller_email()
-        allowed = allowed_services(settings, email)
+        allowed = await allowed_services(settings, friends, email)
         if not allowed:
             raise ToolError(f"{email or 'This account'} isn't on this server's allowlist; ask {settings.owner_email} to add you")
         outlook_linked = bool(await store.get(email, collection="outlook"))

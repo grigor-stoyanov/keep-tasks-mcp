@@ -9,6 +9,7 @@ from key_value.aio.protocols.key_value import AsyncKeyValue
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 
 from access import allowed_services
+from friends import Friends
 from constants.gmail_consts import GMAIL_SCOPES
 from constants.task_consts import TASKS_SCOPES
 from settings import Settings
@@ -60,14 +61,15 @@ class _AllowlistOAuthClient(AsyncOAuth2Client):
     only people who passed this check have refresh tokens to begin with.
     """
 
-    def __init__(self, *args, settings: Settings, **kwargs):
+    def __init__(self, *args, settings: Settings, friends: Friends, **kwargs):
         super().__init__(*args, **kwargs)
         self._settings = settings
+        self._friends = friends
 
     async def fetch_token(self, url, *, grant_type="authorization_code", **params):
         tokens = await super().fetch_token(url, grant_type=grant_type, **params)
         email = _id_token_email(tokens)
-        if grant_type == "authorization_code" and not allowed_services(self._settings, email):
+        if grant_type == "authorization_code" and not await allowed_services(self._settings, self._friends, email):
             await self._revoke(tokens)
             raise SignInRejected(
                 f"{email or 'This Google account'} isn't on this server's allowlist. "
@@ -84,9 +86,10 @@ class _AllowlistOAuthClient(AsyncOAuth2Client):
 
 
 class AllowlistGoogleProvider(GoogleProvider):
-    def __init__(self, *, settings: Settings, **kwargs):
+    def __init__(self, *, settings: Settings, friends: Friends, **kwargs):
         super().__init__(**kwargs)
         self._settings = settings
+        self._friends = friends
 
     def _create_upstream_oauth_client(self) -> AsyncOAuth2Client:
         # Same arguments as OAuthProxy._create_upstream_oauth_client, which this replaces
@@ -96,12 +99,14 @@ class AllowlistGoogleProvider(GoogleProvider):
             token_endpoint_auth_method=self._token_endpoint_auth_method,
             timeout=HTTP_TIMEOUT_SECONDS,
             settings=self._settings,
+            friends=self._friends,
         )
 
 
-def build_auth(settings: Settings, store: AsyncKeyValue) -> GoogleProvider:
+def build_auth(settings: Settings, store: AsyncKeyValue, friends: Friends) -> GoogleProvider:
     return AllowlistGoogleProvider(
         settings=settings,
+        friends=friends,
         client_id=settings.oauth_client_id,
         client_secret=settings.oauth_client_secret,
         base_url=settings.public_url,

@@ -2,14 +2,14 @@
 import os
 from dataclasses import dataclass
 
-# Hard ceiling on friends, on top of the FRIEND_EMAILS allowlist. Raising it is meant to be a
+# Hard ceiling on friends, on top of the allowlist (friends.py). Raising it is meant to be a
 # deliberate code change: Google caps an unverified app at 100 users for its lifetime, and every
 # friend adds Cloud Run and Firestore usage that is billed to you once past the free tier.
 MAX_FRIENDS = 10
 # Tool names start with their service, e.g. gmail_bulk_trash -> "gmail"
-SERVICES = frozenset({"tasks", "gmail", "outlook", "keep"})
-# Keep signs in with the owner's master token, so it can never be shared
-OWNER_ONLY_SERVICES = frozenset({"keep"})
+SERVICES = frozenset({"tasks", "gmail", "outlook", "keep", "friends"})
+# Keep signs in with the owner's master token, so it can never be shared; friends_* manage the allowlist
+OWNER_ONLY_SERVICES = frozenset({"keep", "friends"})
 
 
 @dataclass(frozen=True)

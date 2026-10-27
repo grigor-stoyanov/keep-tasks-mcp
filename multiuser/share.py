@@ -44,8 +44,6 @@ def main() -> None:
     services = frozenset(s.strip() for s in env.get("FRIEND_SERVICES", "tasks,gmail,outlook").split(",") if s.strip())
     daily_calls = int(env.get("FRIEND_DAILY_CALLS", "300"))
 
-    if not env.get("FRIEND_EMAILS"):
-        print("Note: FRIEND_EMAILS is empty, so nobody can sign in yet.\n", file=sys.stderr)
     print(invite_message(public_url, owner, services, daily_calls, args.name))
 
     if args.preview:
