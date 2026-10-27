@@ -11,6 +11,7 @@ from fastmcp.server.dependencies import get_access_token
 from fastmcp.server.middleware import Middleware
 from key_value.aio.protocols.key_value import AsyncKeyValue
 
+from constants.calendar_consts import CALENDAR_SCOPES
 from constants.gmail_consts import GMAIL_SCOPES
 from constants.task_consts import TASKS_SCOPES
 from friends import Friends
@@ -20,7 +21,7 @@ USAGE_TTL = 2 * 24 * 3600  # a day's counter only needs to outlive that day
 # Shown to users who haven't linked Outlook, instead of the whole outlook_* set
 OUTLOOK_LINK_TOOLS = {"outlook_connect", "outlook_connect_finish"}
 # Google services are optional on the consent screen; their tools need the scope to have been granted
-SERVICE_SCOPES = {"tasks": TASKS_SCOPES[0], "gmail": GMAIL_SCOPES[0]}
+SERVICE_SCOPES = {"tasks": TASKS_SCOPES[0], "gmail": GMAIL_SCOPES[0], "calendar": CALENDAR_SCOPES[0]}
 # account_overview and friends: open to everyone allowed in, and free of the daily limit
 ALWAYS_AVAILABLE = frozenset({"account"})
 

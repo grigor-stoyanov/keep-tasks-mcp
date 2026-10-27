@@ -41,7 +41,7 @@ def main() -> None:
     public_url, owner = env.get("PUBLIC_URL", ""), env.get("OWNER_EMAIL", "")
     if not public_url or "xxxxxxxxxx" in public_url or not owner:
         sys.exit("Set PUBLIC_URL and OWNER_EMAIL in multiuser/env.yaml first.")
-    services = frozenset(s.strip() for s in env.get("FRIEND_SERVICES", "tasks,gmail,outlook").split(",") if s.strip())
+    services = frozenset(s.strip() for s in env.get("FRIEND_SERVICES", "tasks,gmail,calendar,outlook").split(",") if s.strip())
     daily_calls = int(env.get("FRIEND_DAILY_CALLS", "300"))
 
     print(invite_message(public_url, owner, services, daily_calls, args.name))

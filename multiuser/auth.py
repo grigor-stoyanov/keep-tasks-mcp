@@ -10,14 +10,15 @@ from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
 
 from access import allowed_services
 from friends import Friends
+from constants.calendar_consts import CALENDAR_SCOPES
 from constants.gmail_consts import GMAIL_SCOPES
 from constants.task_consts import TASKS_SCOPES
 from settings import Settings
 
-# Only these are required. Tasks and Gmail are asked for on the same consent screen, but people can
+# Only these are required. Tasks, Gmail and Calendar are asked for on the same consent screen, but people can
 # untick them; access.py then hides the tools of any service whose scope wasn't granted.
 REQUIRED_SCOPES = ["openid", "email"]
-REQUESTED_SCOPES = [*REQUIRED_SCOPES, *TASKS_SCOPES, *GMAIL_SCOPES]
+REQUESTED_SCOPES = [*REQUIRED_SCOPES, *TASKS_SCOPES, *GMAIL_SCOPES, *CALENDAR_SCOPES]
 GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke"
 
 

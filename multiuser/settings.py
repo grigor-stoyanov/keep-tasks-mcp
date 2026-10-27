@@ -7,7 +7,7 @@ from dataclasses import dataclass
 # friend adds Cloud Run and Firestore usage that is billed to you once past the free tier.
 MAX_FRIENDS = 10
 # Tool names start with their service, e.g. gmail_bulk_trash -> "gmail"
-SERVICES = frozenset({"tasks", "gmail", "outlook", "keep", "friends"})
+SERVICES = frozenset({"tasks", "gmail", "calendar", "outlook", "keep", "friends"})
 # Keep signs in with the owner's master token, so it can never be shared; friends_* manage the allowlist
 OWNER_ONLY_SERVICES = frozenset({"keep", "friends"})
 
@@ -47,7 +47,7 @@ def load_settings() -> Settings:
     if len(friends) > MAX_FRIENDS:
         raise SystemExit(f"FRIEND_EMAILS lists {len(friends)} people; the limit is MAX_FRIENDS={MAX_FRIENDS}")
 
-    friend_services = _csv(os.environ.get("FRIEND_SERVICES", "tasks,gmail,outlook"))
+    friend_services = _csv(os.environ.get("FRIEND_SERVICES", "tasks,gmail,calendar,outlook"))
     if unknown := friend_services - SERVICES:
         raise SystemExit(f"Unknown FRIEND_SERVICES: {', '.join(sorted(unknown))}")
     if shared := friend_services & OWNER_ONLY_SERVICES:

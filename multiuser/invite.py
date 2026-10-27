@@ -15,16 +15,26 @@ FEATURES = {
         "try": ["What's due this week?", "Add 'book the dentist' to my tasks for Friday"],
     },
     "gmail": {
-        "title": "Gmail cleanup",
-        "what": "Find who floods your inbox and trash their mail in bulk. Always a dry run first, "
-                "and everything stays recoverable from Trash for 30 days.",
-        "try": ["Who sends me the most unread promotions?", "Trash everything from my top 5 senders"],
+        "title": "Gmail",
+        "what": "Search and read your mail, write drafts and replies, and clean up in bulk. It shows "
+                "you every email before sending and only sends once you say yes. Trashed mail stays "
+                "recoverable for 30 days.",
+        "try": ["Summarise my unread emails from today", "Draft a reply to Anna saying Friday works",
+                "Who sends me the most promotions? Trash them all"],
+    },
+    "calendar": {
+        "title": "Google Calendar",
+        "what": "See what's coming up, and add, move or cancel events. Before inviting or "
+                "notifying anyone it shows you what will be sent and waits for your yes.",
+        "try": ["What's on my calendar this week?", "Block 2 hours for the gym on Saturday morning"],
     },
     "outlook": {
-        "title": "Outlook.com (read-only)",
-        "what": "Search and read your Outlook mail and check your calendar. It can't send, move "
-                "or delete anything. Link it once by asking to connect your Outlook.",
-        "try": ["Connect my Outlook", "Summarise my unread Outlook emails", "What's on my calendar tomorrow?"],
+        "title": "Outlook.com",
+        "what": "Read, draft and reply to Outlook mail, move mail into folders in bulk, manage your "
+                "Outlook calendar and Microsoft To Do. It asks before sending anything. Link it once "
+                "by asking to connect your Outlook.",
+        "try": ["Connect my Outlook", "Move every newsletter in my Outlook inbox to a Newsletters folder",
+                "What's on my Outlook calendar tomorrow?"],
     },
     "keep": {
         "title": "Google Keep",
@@ -172,7 +182,7 @@ button.cta {{ font-size:1rem }}
 footer {{ color:var(--muted); font-size:.85rem; margin-top:28px }} a {{ color:var(--accent) }}
 </style></head><body><main>
 <h1>You're invited to Keep Tasks</h1>
-<p class=lead>A connector that lets your AI assistant work with your own Google Tasks, Gmail and Outlook. Invite only.</p>
+<p class=lead>A connector that lets your AI assistant work with your own Gmail, Google Calendar, Google Tasks and Outlook. Invite only.</p>
 <div class=ctas>
 <a class=cta href="{esc(claude_install_link(public_url))}" target=_blank rel=noopener>Add to Claude</a>
 <a class=cta href="{CHATGPT_SETTINGS}" data-copy="{esc(url)}" data-done="URL copied, paste it in ChatGPT" target=_blank rel=noopener>Add to ChatGPT</a>

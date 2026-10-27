@@ -22,6 +22,7 @@ from googleapiclient.discovery import build
 from key_value.aio.protocols.key_value import AsyncKeyValue
 from outlook_personal_mcp.graph import GraphClient
 
+import clients.calendar_client
 import clients.gmail_client
 import clients.outlook_client
 import clients.task_client
@@ -92,6 +93,10 @@ class CallerTaskClient(_CallerService, clients.task_client.TaskClient):
 
 class CallerGmailClient(_CallerService, clients.gmail_client.GmailClient):
     api = ("gmail", "v1")
+
+
+class CallerCalendarClient(_CallerService, clients.calendar_client.CalendarClient):
+    api = ("calendar", "v3")
 
 
 class OutlookAccounts:
@@ -194,6 +199,7 @@ def install(store: AsyncKeyValue, settings: Settings) -> OutlookAccounts:
     """Swap the src/ client singletons for per-caller ones. Call before importing any tool module."""
     clients.task_client.task_client = CallerTaskClient(settings.owner_email)
     clients.gmail_client.gmail_client = CallerGmailClient(settings.owner_email)
+    clients.calendar_client.calendar_client = CallerCalendarClient(settings.owner_email)
     accounts = OutlookAccounts(store, settings.outlook_client_id, settings.owner_email)
     clients.outlook_client.outlook_graph = CallerOutlookGraph(accounts)
     return accounts

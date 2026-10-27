@@ -42,7 +42,7 @@ gcloud-install:
 # Login and enable the APIs. The project needs billing linked.
 gcloud-setup:
 	gcloud auth login
-	gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com tasks.googleapis.com gmail.googleapis.com $(PROJECT_FLAG)
+	gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com tasks.googleapis.com gmail.googleapis.com calendar-json.googleapis.com $(PROJECT_FLAG)
 
 # Build remotely with Cloud Build and roll out a new revision of the same service (URL stays the same).
 # --env-vars-file replaces all env vars with the contents of env.yaml.

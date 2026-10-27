@@ -1,7 +1,7 @@
 """Create and manage env.yaml (the secrets for the MCP server). Driven by the Makefile.
 
 Subcommands:
-  login  Sign in to Google in the browser, generate MCP_SECRET, write env.yaml (Google Tasks + Gmail)
+  login  Sign in to Google in the browser, generate MCP_SECRET, write env.yaml (Tasks, Gmail, Calendar)
   keep     Add a Google Keep master token to env.yaml (optional, unofficial)
   outlook  Sign in to a personal Microsoft account, add an Outlook refresh token to env.yaml (optional)
   run      Load env.yaml and start the server locally
@@ -24,8 +24,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ENV_FILE = ROOT / "env.yaml"
 CLIENT_FILE = ROOT / "client_secret.json"
-# One refresh token for both services; each client requests only its own scope from it
-SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.modify"]
+# One refresh token for all Google services; each client requests only its own scopes from it.
+# Must match the scopes in src/constants/.
+SCOPES = [
+    "https://www.googleapis.com/auth/tasks",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/calendar.readonly",
+]
 # Must match src/constants/outlook_consts.py
 OUTLOOK_SCOPES = ["Mail.ReadWrite", "Mail.Send", "Calendars.ReadWrite", "Tasks.ReadWrite", "User.Read"]
 OUTLOOK_AUTHORITY = "https://login.microsoftonline.com/consumers"
