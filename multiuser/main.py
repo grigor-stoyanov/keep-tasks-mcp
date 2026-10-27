@@ -24,6 +24,7 @@ outlook_accounts = per_user.install(store, settings)
 import connect_tools  # noqa: E402
 import friend_tools  # noqa: E402
 import onboarding  # noqa: E402
+import tools.gmail_mail_tools  # noqa: E402, F401
 import tools.gmail_tools  # noqa: E402, F401
 import tools.keep_tools  # noqa: E402, F401
 import tools.outlook_tools  # noqa: E402, F401
