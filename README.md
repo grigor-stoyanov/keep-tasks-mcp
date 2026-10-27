@@ -152,6 +152,24 @@ make url PROJECT=<your-project-id>            # prints the connector URL
 Cloud Build builds the `Dockerfile` remotely, so Docker doesn't need to be running locally. Add the
 printed URL in claude.ai under **Settings -> Connectors -> Add custom connector**.
 
+## Sharing with a few friends (experimental)
+
+`multiuser/` runs the same tools as a second Cloud Run service that up to 10 invited friends can
+use. A friend adds one URL as a connector in their AI app and signs in with Google: no secrets,
+no Cloud project, no Azure app of their own.
+
+- **Allowlist only.** Anyone not invited is refused at sign-in and their tokens are revoked at once.
+- **Free-tier limits.** A hard cap of 10 friends, 300 successful tool calls per friend per day, at
+  most one Cloud Run instance, and a switch that cuts every friend off at once. You stay unlimited.
+- **Each friend picks their services.** Tasks and Gmail can be unticked at sign-in, Outlook is
+  linked only on request, and Keep is never shared.
+- **Reuse, not a copy.** The `src/` tools run unchanged; only the clients are swapped for ones that
+  use the caller's own sign-in.
+
+Setup, the limits, and which AI apps can connect (Claude, ChatGPT, Gemini) are in
+[multiuser/README.md](multiuser/README.md). How friends' data is handled is in the
+[Privacy Policy](PRIVACY.md#the-shared-server-if-a-friend-invited-you).
+
 ## Security model
 
 - The service is public and the only protection is the secret in the URL path
@@ -159,8 +177,8 @@ printed URL in claude.ai under **Settings -> Connectors -> Add custom connector*
   `MCP_SECRET` and redeploy.
 - Credentials live in `env.yaml` / `.env`, both git-ignored. They are passed to Cloud Run as
   environment variables.
-- This is a personal-use setup. For multiple users, put real sign-in in front of it, for example
-  FastMCP's `GoogleProvider` OAuth.
+- This is a personal-use setup. The shared server above replaces the URL secret with real Google
+  sign-in and an allowlist.
 
 ## Tech Stack
 
