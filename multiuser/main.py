@@ -27,6 +27,7 @@ import onboarding  # noqa: E402
 import tools.gmail_mail_tools  # noqa: E402, F401
 import tools.gmail_tools  # noqa: E402, F401
 import tools.keep_tools  # noqa: E402, F401
+import tools.outlook_mail_tools  # noqa: E402, F401
 import tools.outlook_tools  # noqa: E402, F401
 import tools.task_tools  # noqa: E402, F401
 from server import google_mcp  # noqa: E402

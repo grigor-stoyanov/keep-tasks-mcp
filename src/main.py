@@ -4,6 +4,7 @@ from server import google_mcp
 import tools.gmail_mail_tools  # noqa: F401
 import tools.gmail_tools  # noqa: F401
 import tools.keep_tools  # noqa: F401
+import tools.outlook_mail_tools  # noqa: F401
 import tools.outlook_tools  # noqa: F401
 import tools.task_tools  # noqa: F401
 

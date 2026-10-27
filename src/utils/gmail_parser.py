@@ -1,12 +1,7 @@
 import base64
-import html
-import re
 from email.utils import parseaddr
 
-_HIDDEN_HTML = re.compile(r"<(script|style|head)\b.*?</\1>", re.IGNORECASE | re.DOTALL)
-_BLOCK_TAGS = re.compile(r"<\s*(br|/p|/div|/tr|/li|/h\d)\b[^>]*>", re.IGNORECASE)
-_TAGS = re.compile(r"<[^>]+>")
-_BLANK_LINES = re.compile(r"\n\s*\n\s*\n+")
+from utils.text import html_to_text
 
 
 def _header(msg: dict, name: str) -> str | None:
@@ -30,11 +25,6 @@ def _decode(data: str) -> str:
     return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", errors="replace")
 
 
-def _html_to_text(markup: str) -> str:
-    text = _TAGS.sub("", _BLOCK_TAGS.sub("\n", _HIDDEN_HTML.sub("", markup)))
-    return _BLANK_LINES.sub("\n\n", html.unescape(text)).strip()
-
-
 def _body_text(payload: dict) -> str:
     """The readable text of a message: its text/plain parts, or its HTML with the markup removed."""
     plain, rich = [], []
@@ -50,7 +40,7 @@ def _body_text(payload: dict) -> str:
             walk(child)
 
     walk(payload)
-    return "\n".join(plain).strip() if plain else _html_to_text("\n".join(rich))
+    return "\n".join(plain).strip() if plain else html_to_text("\n".join(rich))
 
 
 def _attachments(payload: dict) -> list[str]:

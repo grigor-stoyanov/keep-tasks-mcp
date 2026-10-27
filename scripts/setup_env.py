@@ -27,7 +27,7 @@ CLIENT_FILE = ROOT / "client_secret.json"
 # One refresh token for both services; each client requests only its own scope from it
 SCOPES = ["https://www.googleapis.com/auth/tasks", "https://www.googleapis.com/auth/gmail.modify"]
 # Must match src/constants/outlook_consts.py
-OUTLOOK_SCOPES = ["Mail.Read", "Calendars.Read", "User.Read"]
+OUTLOOK_SCOPES = ["Mail.ReadWrite", "Mail.Send", "Calendars.ReadWrite", "Tasks.ReadWrite", "User.Read"]
 OUTLOOK_AUTHORITY = "https://login.microsoftonline.com/consumers"
 
 
