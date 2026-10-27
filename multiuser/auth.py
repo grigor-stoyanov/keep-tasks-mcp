@@ -32,9 +32,19 @@ def build_store(settings: Settings) -> AsyncKeyValue:
 
         backend = MemoryStore()
     else:
-        from key_value.aio.stores.firestore import FirestoreStore
+        from key_value.aio.stores.firestore.store import (
+            FirestoreStore,
+            FirestoreV1CollectionSanitizationStrategy,
+            FirestoreV1KeySanitizationStrategy,
+        )
 
-        backend = FirestoreStore(default_collection="keep-tasks-mcp")
+        # Keys can contain "/", which Firestore document ids can't: ChatGPT and Claude register as
+        # OAuth clients whose id is a URL (https://chatgpt.com/oauth/client.json). Valid keys are kept as-is.
+        backend = FirestoreStore(
+            default_collection="keep-tasks-mcp",
+            key_sanitization_strategy=FirestoreV1KeySanitizationStrategy(),
+            collection_sanitization_strategy=FirestoreV1CollectionSanitizationStrategy(),
+        )
     return FernetEncryptionWrapper(backend, source_material=settings.server_key, salt="keep-tasks-mcp-store")
 
 
