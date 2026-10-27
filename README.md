@@ -1,8 +1,9 @@
 # Google Keep + Tasks MCP Server
 
 A remote [Model Context Protocol](https://modelcontextprotocol.io) server that lets an AI assistant
-read and manage my **Google Tasks** and **Google Keep** notes, bulk-clean my **Gmail**, and read my
-**Outlook.com** mail and calendar. It runs over Streamable HTTP, so it
+read and manage my **Google Tasks**, **Google Keep** notes, **Gmail** and **Google Calendar**, and my
+**Outlook.com** mail, calendar and **Microsoft To Do**. It can draft and send email, but only after
+showing me exactly what will go out. It runs over Streamable HTTP, so it
 can be added to Claude as a custom connector and used from the desktop and mobile apps.
 
 I built it to learn how MCP servers work end to end: tool design, auth, deployment, and keeping a
@@ -10,18 +11,22 @@ codebase small enough to extend without fear.
 
 ## What it does
 
-27 tools, grouped by service:
+57 tools, grouped by service:
 
 | Service | Tools |
 |---|---|
 | **Google Tasks** (official API) | `tasks_list_tasklists`, `tasks_create_tasklist`, `tasks_list_tasks`, `tasks_create_task`, `tasks_update_task`, `tasks_delete_task`, `tasks_get_task_by_title` |
 | **Google Keep** (unofficial, `gkeepapi`) | `keep_search_notes`, `keep_get_note`, `keep_create_note`, `keep_create_list`, `keep_update_note`, `keep_update_list`, `keep_trash_note` |
-| **Gmail** (official API) | `gmail_top_senders`, `gmail_bulk_trash`, `gmail_restore_from_trash` |
-| **Outlook.com** (Microsoft Graph, read-only, reused from [`outlook-personal-mcp`](https://github.com/salahawad/outlook-personal-mcp)) | `outlook_list_folders`, `outlook_list_messages`, `outlook_search_messages`, `outlook_get_message`, `outlook_list_attachments`, `outlook_list_calendars`, `outlook_list_events`, `outlook_search_events`, `outlook_get_event`, `outlook_find_availability` |
+| **Gmail** (official API) | read: `gmail_search_messages`, `gmail_get_message`, `gmail_list_drafts` · write: `gmail_create_draft`, `gmail_send_draft` · cleanup: `gmail_top_senders`, `gmail_bulk_trash`, `gmail_restore_from_trash` |
+| **Google Calendar** (official API) | `calendar_list_calendars`, `calendar_list_events`, `calendar_create_event`, `calendar_update_event`, `calendar_delete_event` |
+| **Outlook.com mail** (Microsoft Graph, partly reused from [`outlook-personal-mcp`](https://github.com/salahawad/outlook-personal-mcp)) | read: `outlook_list_folders`, `outlook_list_messages`, `outlook_search_messages`, `outlook_get_message`, `outlook_list_attachments` · write: `outlook_create_draft`, `outlook_update_draft`, `outlook_create_reply_draft`, `outlook_send_draft`, `outlook_move_message`, `outlook_mark_read`, `outlook_flag_message`, `outlook_delete_message`, `outlook_create_folder` · cleanup: `outlook_top_senders`, `outlook_bulk_move` |
+| **Outlook.com calendar** | `outlook_list_calendars`, `outlook_list_events`, `outlook_search_events`, `outlook_get_event`, `outlook_find_availability`, `outlook_create_event`, `outlook_update_event`, `outlook_delete_event`, `outlook_respond_event` |
+| **Microsoft To Do** | `outlook_todo_list_lists`, `outlook_todo_list_tasks`, `outlook_todo_create_task`, `outlook_todo_update_task`, `outlook_todo_delete_task` |
 
 Example prompts: *"What's due this week?"*, *"Add a checklist called Groceries with milk, eggs and bread"*,
-*"Move everything labelled work to archived"*,
-*"Who sends me the most unread promotions? Trash everything from the top five."*
+*"Who sends me the most unread promotions? Trash everything from the top five."*,
+*"Draft a reply to Anna saying Friday works"*, *"Move every newsletter in my Outlook inbox to a
+Newsletters folder"*, *"Block Saturday morning for the gym"*.
 
 ## Architecture
 
@@ -32,14 +37,19 @@ src/
   tools/             MCP layer: parameters, validation, response shaping
     task_tools.py
     keep_tools.py
-    gmail_tools.py
-    outlook_tools.py registers outlook-personal-mcp's read-only tools on this server
+    gmail_tools.py         bulk cleanup by search query
+    gmail_mail_tools.py    search, read, draft, send
+    calendar_tools.py
+    outlook_tools.py       registers a vetted subset of outlook-personal-mcp's tools on this server
+    outlook_mail_tools.py  sending, replies, invitations, bulk moves
+    outlook_todo_tools.py  Microsoft To Do
   clients/           one class per service: auth, locking, raw calls
     task_client.py
     keep_client.py
     gmail_client.py
+    calendar_client.py
     outlook_client.py  refresh-token auth for outlook-personal-mcp's Graph client
-  utils/             pure helpers (date parsing, paging, response views)
+  utils/             pure helpers (date parsing, paging, response views, send_guard)
   constants/         OAuth scopes
 ```
 
@@ -64,15 +74,23 @@ beyond raising `ToolError`.
   server-side, so clearing 9,000 promotions is one tool call. They only ever move mail to Trash
   (the `gmail.modify` scope can't permanently delete), `gmail_bulk_trash` defaults to a dry run,
   and `gmail_restore_from_trash` undoes it for 30 days.
+- **Nothing is sent without a yes.** Email only goes out through `gmail_send_draft` and
+  `outlook_send_draft`, and only from a draft. The first call previews exactly what would be sent;
+  the second, with `confirm=true`, is refused unless that same content was previewed in the last
+  15 minutes (`utils/send_guard.py`). Invitations, and changes to events with guests, work the same
+  way. The send tools are also marked destructive, so AI apps ask before running them. There is no
+  tool that sends in one call.
 - **Stateless HTTP.** Each request is independent, which suits scale-to-zero hosting like Cloud Run.
 - **Registration by import.** `@google_mcp.tool` registers a function when its module is imported,
   so `main.py` is the single place that lists which modules are part of the server.
 - **Reuse instead of rewriting Outlook.** The Outlook tools come from the
   [`outlook-personal-mcp`](https://github.com/salahawad/outlook-personal-mcp) package (MIT), pinned
   in `requirements.txt`. Its tools are defined inside `register(mcp, client)` functions, so
-  `outlook_tools.py` calls them with a small stand-in for the server that keeps only the tools
-  marked `readOnlyHint=True` and registers them here with an `outlook_` prefix. No fork and no
-  second connector. The only thing replaced is auth: upstream keeps a token cache file on disk,
+  `outlook_tools.py` calls them with a small stand-in for the server that registers an allowlist
+  of them here, with an `outlook_` prefix and our own annotations. Upstream tools that send in one
+  call (`send_mail`, `reply`, `forward`, `send_draft`, `create_event`) or touch the server's disk
+  (attachments) are left out; `outlook_mail_tools.py` replaces the sending ones with versions that
+  preview first, and adds the bulk tools. No fork and no second connector. The only thing replaced is auth: upstream keeps a token cache file on disk,
   which doesn't survive Cloud Run, so `outlook_client.py` signs in from a refresh token in an env
   var, like the Google clients do.
 
@@ -98,16 +116,27 @@ Needs Python 3.12+, `make`, and a Google account.
 
 ### Gmail
 
-`make env` asks for Tasks and Gmail access on the same consent screen. Gmail's `gmail.modify` is a
+`make env` asks for Tasks, Gmail and Calendar access on the same consent screen. Gmail's `gmail.modify` is a
 restricted scope, so Google shows an "unverified app" warning for your own client; choose
 *Advanced -> Go to (app)* to continue. If you signed in before Gmail support was added, run
-`make env` again (and redeploy) to get a refresh token that includes Gmail.
+`make env` again (and redeploy) to get a refresh token that includes Gmail and Calendar.
 
 A typical cleanup:
 
 1. `gmail_top_senders` (default query `category:promotions is:unread`) lists the biggest senders.
 2. `gmail_bulk_trash(query="from:deals@shop.com")` dry run: count plus a sample to check.
 3. `gmail_bulk_trash(..., dry_run=false)` trashes them all. Starred mail is skipped.
+
+Sending: *"Reply to Anna saying Friday works"* makes a draft (`gmail_create_draft` with
+`reply_to_message_id`). The AI then shows the preview from `gmail_send_draft` and only sends after
+you say yes.
+
+### Google Calendar
+
+Uses the same Google sign-in (`calendar.events`, plus `calendar.readonly` to list calendars).
+Enable the **Google Calendar API** in your Cloud project (`make gcloud-setup` does it), then run
+`make env` again and redeploy. Events without guests are created and changed straight away; an
+event with guests, or changing or deleting one, previews first because Google emails the guests.
 
 ### Optional: Google Keep
 
@@ -120,11 +149,18 @@ tools simply report that Keep isn't configured.
 make env-keep   # walks you through getting the master token
 ```
 
-### Optional: Outlook.com (read-only)
+### Optional: Outlook.com and Microsoft To Do
 
-Works with personal Microsoft accounts (outlook.com, hotmail.com, live.com). The token only has
-`Mail.Read`, `Calendars.Read` and `User.Read`, so even a misbehaving model can't send, move or
-delete anything. Leave `OUTLOOK_*` unset and the Outlook tools report that Outlook isn't configured.
+Works with personal Microsoft accounts (outlook.com, hotmail.com, live.com). The token has
+`Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `Tasks.ReadWrite` and `User.Read`: it can read,
+draft, move and delete mail (to Deleted Items, never permanently), send drafts after a preview, and
+manage the calendar and To Do. Leave `OUTLOOK_*` unset and the Outlook tools report that Outlook
+isn't configured. If you signed in back when Outlook was read-only, run `make env-outlook` again and
+redeploy to grant the new permissions.
+
+Bulk cleanup works like Gmail's: `outlook_top_senders` lists who fills a folder, then
+`outlook_bulk_move(destination="Newsletters", from_addresses=[...])` does a dry run and, once you
+confirm, moves every match, 20 per Graph request. Use `destination="deleteditems"` to trash.
 1. **Register an app.** In the [Azure portal](https://portal.azure.com) -> *Microsoft Entra ID* ->
    *App registrations* -> *New registration*. Supported account types: *Personal Microsoft accounts
    only*. No redirect URI. Then under *Authentication*, set *Allow public client flows* to **Yes**.
@@ -161,7 +197,7 @@ no Cloud project, no Azure app of their own.
 - **Allowlist only.** Anyone not invited is refused at sign-in and their tokens are revoked at once.
 - **Free-tier limits.** A hard cap of 10 friends, 300 successful tool calls per friend per day, at
   most one Cloud Run instance, and a switch that cuts every friend off at once. You stay unlimited.
-- **Each friend picks their services.** Tasks and Gmail can be unticked at sign-in, Outlook is
+- **Each friend picks their services.** Tasks, Gmail and Calendar can be unticked at sign-in, Outlook is
   linked only on request, and Keep is never shared.
 - **Reuse, not a copy.** The `src/` tools run unchanged; only the clients are swapped for ones that
   use the caller's own sign-in.

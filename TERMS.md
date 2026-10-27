@@ -15,8 +15,10 @@ not a hosted service, and the author does not operate any server on your behalf.
 
 The software is provided **"as is", without warranty of any kind**, as described in the
 [MIT License](LICENSE). The author is not liable for any loss or damage, including lost, changed or
-deleted tasks and notes. The tool can create, edit and delete data in your Google account when an AI
-assistant you connected asks it to, so review what you allow it to do.
+deleted tasks, notes, emails or events. The tool can create, edit and delete data in your Google and
+Microsoft accounts when an AI assistant you connected asks it to, so review what you allow it to do.
+It can also send email and calendar invitations on your behalf, but only after showing you a
+preview that you agree to; you are responsible for what you agree to send.
 
 ## 3. Google Keep is unofficial
 
