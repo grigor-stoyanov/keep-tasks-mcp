@@ -66,8 +66,25 @@ gcloud billing budgets create --billing-account=<BILLING_ACCOUNT_ID> --display-n
    shows friends an "unverified app" warning, and caps the app at 100 users ever.
 3. **Azure app:** reuse the one from `make env-outlook`; it already accepts any personal account.
 4. **Config:** copy `env.example.yaml` to `multiuser/env.yaml` (git-ignored) and fill it in.
-5. **Deploy:** `make deploy-friends`. Friends add `<PUBLIC_URL>/mcp` as a custom connector and sign
-   in with Google.
+5. **Deploy:** `make deploy-friends`.
+6. **Invite:** add the friend's email to `FRIEND_EMAILS`, redeploy, then run `make share-friends`
+   (optionally `ARGS="--name Alex"`) and send them the text it prints.
+
+## Inviting friends
+
+`make share-friends` prints an invite to paste into a chat or email. It lists what they get,
+links to `<PUBLIC_URL>/join`, and suggests a first message. `ARGS="--preview"` also opens the page
+locally.
+
+The **/join page** is public and served by the server itself: the connector URL with a copy
+button, the features this server shares, step-by-step setup for Claude, ChatGPT, Claude Code and
+Gemini CLI, and the first thing to ask.
+
+Once connected, the AI explains the connector by itself. The server instructions ask it to call
+**`account_overview`** on first use, which returns the user's features with example requests, what
+they could still enable (an unticked Google service, Outlook not linked yet), and their usage today.
+The same tour is available as the **`getting_started`** prompt (in Claude: the + menu). The text
+comes from one feature catalogue in `invite.py`, so the page, the invite and the AI always agree.
 
 ## Which AI apps can connect
 
@@ -77,14 +94,17 @@ any client that supports that works. In practice (October 2026):
 | App | Status | Notes |
 |---|---|---|
 | **Claude** (web, desktop, mobile) | Works | *Settings -> Connectors -> Add custom connector*, paste the URL, sign in. The target client. |
-| **ChatGPT** | Likely works, plan-dependent | Custom MCP connectors with OAuth live behind *Developer mode*. OpenAI's help center lists full MCP support (including write actions such as `gmail_bulk_trash` or `tasks_create_task`) for Business, Enterprise and Edu; for Plus and Pro its docs disagree on whether that's read-only or unavailable. Untested here. |
-| **Gemini app** (consumer) | No | No confirmed way to add a custom MCP server to the personal Gemini app. |
+| **ChatGPT** Business, Enterprise, Edu | Should work, untested | Custom connectors via *Developer mode*, with OAuth and write actions. |
+| **ChatGPT** Plus, Pro | Possibly read-only, untested | OpenAI's docs disagree on whether these plans get custom connectors, or only read/fetch. Every tool is labelled read or write, so a read-only mode can still use the 16 read tools. |
+| **ChatGPT** Free | No | Free accounts can't add custom connectors at all. That's OpenAI's limit; nothing on the server side changes it. |
+| **Gemini app** (personal) | No | No way to add a custom MCP server to the consumer Gemini app. |
+| **Gemini CLI** | Works, free | Remote MCP with OAuth in `~/.gemini/settings.json`, then `/mcp auth keep-tasks`. Free with a personal Google account; there are unconfirmed reports that Google is moving personal users to a successor CLI. |
 | **Gemini Enterprise** | Not practical | Admin-only "Custom MCP Server" data store, in preview, no Dynamic Client Registration: it would need its own OAuth client and a Google-hosted redirect URI. |
-| **Gemini CLI** | Works for technical friends | Remote MCP servers with OAuth are configured in `~/.gemini/settings.json`; it discovers the OAuth endpoints from the 401 response. |
 
-If ChatGPT becomes a target: its connectors separate read from write actions, and the src/ tools
-don't yet mark which they are. Adding `readOnlyHint` annotations (as the Outlook tools already have)
-would let read-only plans use the read tools. The sign-in flow itself needs no change.
+**Read vs write.** Every tool carries MCP `readOnlyHint`/`destructiveHint` annotations
+(`src/constants/tool_annotations.py`): 16 read, the rest write, with deletes, trashing and
+overwrites marked destructive. ChatGPT uses them to ask before writes, and read-only modes to pick
+which tools to offer.
 
 ## Open questions for later
 

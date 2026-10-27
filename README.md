@@ -165,6 +165,8 @@ no Cloud project, no Azure app of their own.
   linked only on request, and Keep is never shared.
 - **Reuse, not a copy.** The `src/` tools run unchanged; only the clients are swapped for ones that
   use the caller's own sign-in.
+- **Easy invites.** `make share-friends` prints an invite linking to the server's `/join` page with
+  setup steps per app, and once connected the AI gives each friend a tour of what they can do.
 
 Setup, the limits, and which AI apps can connect (Claude, ChatGPT, Gemini) are in
 [multiuser/README.md](multiuser/README.md). How friends' data is handled is in the
