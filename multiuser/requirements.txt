@@ -1,0 +1,3 @@
+-r ../requirements.txt
+# Token and usage storage for the shared server (the Firestore free tier covers a few friends)
+google-cloud-firestore==2.*

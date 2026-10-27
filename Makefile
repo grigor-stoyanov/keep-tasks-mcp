@@ -6,7 +6,12 @@ PROJECT ?=
 
 PROJECT_FLAG = $(if $(PROJECT),--project $(PROJECT),)
 
-.PHONY: help deps env env-keep env-outlook run gcloud-install gcloud-setup deploy url
+# Shared server for friends (multiuser/), a separate Cloud Run service
+FRIENDS_SERVICE ?= keep-tasks-friends
+GCP_PROJECT = $(or $(PROJECT),$(shell gcloud config get-value project))
+FRIENDS_IMAGE = $(REGION)-docker.pkg.dev/$(GCP_PROJECT)/cloud-run-source-deploy/$(FRIENDS_SERVICE)
+
+.PHONY: help deps env env-keep env-outlook run gcloud-install gcloud-setup deploy url friends-setup deploy-friends
 
 help:
 	@echo First time:  make deps, make env, then make run to test locally
@@ -46,3 +51,13 @@ deploy:
 
 url:
 	$(PYTHON) scripts/setup_env.py url --service $(SERVICE) --region $(REGION) --project "$(PROJECT)"
+
+# One-time: the Firestore database that stores everyone's sign-ins (free tier: one per project)
+friends-setup:
+	gcloud services enable firestore.googleapis.com $(PROJECT_FLAG)
+	gcloud firestore databases create --location=$(REGION) $(PROJECT_FLAG)
+
+# Build with multiuser/Dockerfile, then deploy. One instance at most, so a busy friend can't scale up your bill.
+deploy-friends:
+	gcloud builds submit --config multiuser/cloudbuild.yaml --substitutions _IMAGE=$(FRIENDS_IMAGE) $(PROJECT_FLAG)
+	gcloud run deploy $(FRIENDS_SERVICE) --image $(FRIENDS_IMAGE) --region $(REGION) --allow-unauthenticated --env-vars-file multiuser/env.yaml --max-instances 1 --concurrency 20 --memory 512Mi $(PROJECT_FLAG)

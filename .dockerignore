@@ -1,5 +1,7 @@
 *
 !requirements.txt
 !src/
+!multiuser/
+multiuser/env.yaml
 **/__pycache__
 **/*.pyc
