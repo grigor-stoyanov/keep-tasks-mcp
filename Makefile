@@ -55,7 +55,7 @@ url:
 # One-time: the Firestore database that stores everyone's sign-ins (free tier: one per project)
 friends-setup:
 	gcloud services enable firestore.googleapis.com $(PROJECT_FLAG)
-	gcloud firestore databases create --location=$(REGION) $(PROJECT_FLAG)
+	gcloud firestore databases describe --database="(default)" --format="value(type,locationId)" $(PROJECT_FLAG) || gcloud firestore databases create --location=$(REGION) $(PROJECT_FLAG)
 
 # Build with multiuser/Dockerfile, then deploy. One instance at most, so a busy friend can't scale up your bill.
 deploy-friends:
