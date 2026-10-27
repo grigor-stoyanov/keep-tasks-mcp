@@ -1,4 +1,7 @@
+import base64
 from email.utils import parseaddr
+
+from utils.text import html_to_text
 
 
 def _header(msg: dict, name: str) -> str | None:
@@ -16,3 +19,38 @@ def _sender(msg: dict) -> tuple[str, str]:
     """(display name, lowercased email address) of the From header."""
     name, addr = parseaddr(_header(msg, "From") or "")
     return name, addr.lower()
+
+
+def _decode(data: str) -> str:
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4)).decode("utf-8", errors="replace")
+
+
+def _body_text(payload: dict) -> str:
+    """The readable text of a message: its text/plain parts, or its HTML with the markup removed."""
+    plain, rich = [], []
+
+    def walk(part: dict) -> None:
+        data = part.get("body", {}).get("data")
+        if data and not part.get("filename"):
+            if part.get("mimeType") == "text/plain":
+                plain.append(_decode(data))
+            elif part.get("mimeType") == "text/html":
+                rich.append(_decode(data))
+        for child in part.get("parts", []):
+            walk(child)
+
+    walk(payload)
+    return "\n".join(plain).strip() if plain else html_to_text("\n".join(rich))
+
+
+def _attachments(payload: dict) -> list[str]:
+    names = []
+
+    def walk(part: dict) -> None:
+        if part.get("filename"):
+            names.append(part["filename"])
+        for child in part.get("parts", []):
+            walk(child)
+
+    walk(payload)
+    return names

@@ -3,27 +3,28 @@ from typing import Literal
 from fastmcp.exceptions import ToolError
 
 from clients.task_client import task_client
+from constants.tool_annotations import DESTRUCTIVE, READ, WRITE
 from server import google_mcp
 from utils.date_formatter import _due
 from utils.pagination import collect_pages
 from utils.task_parser import _task_view
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=READ)
 def tasks_list_tasklists() -> list[dict]:
     """List all of the user's Google Tasks lists (id and title)."""
     lists = collect_pages(task_client.list_tasklists, maxResults=100)
     return [{"id": l["id"], "title": l["title"]} for l in lists]
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=WRITE)
 def tasks_create_tasklist(title: str) -> dict:
     """Create a new Google Tasks list."""
     resp = task_client.create_tasklist(body={"title": title})
     return {"id": resp["id"], "title": resp["title"]}
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=READ)
 def tasks_list_tasks(tasklist_id: str = "@default", show_completed: bool = False, due_max: str | None = None) -> list[dict]:
     """List tasks in a task list. due_max (YYYY-MM-DD) limits to tasks due on or before that date."""
     params = {"showCompleted": show_completed, "showHidden": show_completed, "maxResults": 100}
@@ -33,7 +34,7 @@ def tasks_list_tasks(tasklist_id: str = "@default", show_completed: bool = False
     return [_task_view(t) for t in items]
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=WRITE)
 def tasks_create_task(
     title: str,
     tasklist_id: str = "@default",
@@ -51,7 +52,7 @@ def tasks_create_task(
     return _task_view(resp)
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=DESTRUCTIVE)
 def tasks_update_task(
     task_id: str,
     title: str | None,
@@ -74,14 +75,14 @@ def tasks_update_task(
 
 
 # TODO: add rollback in memory
-@google_mcp.tool
+@google_mcp.tool(annotations=DESTRUCTIVE)
 def tasks_delete_task(task_id: str, tasklist_id: str = "@default") -> str:
     """Permanently delete a task."""
     task_client.delete_task(tasklist=tasklist_id, task=task_id)
     return "deleted"
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=READ)
 def tasks_get_task_by_title(title: str, tasklist_id: str = "@default") -> dict | None:
     """Get a task by exact title (completed tasks included). Returns None if not found."""
     items = collect_pages(

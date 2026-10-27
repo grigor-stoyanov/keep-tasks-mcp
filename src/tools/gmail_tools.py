@@ -10,6 +10,7 @@ from fastmcp.exceptions import ToolError
 
 from clients.gmail_client import gmail_client
 from constants.gmail_consts import LIST_PAGE_SIZE, METADATA_BATCH, MODIFY_CHUNK
+from constants.tool_annotations import DESTRUCTIVE, READ, WRITE
 from server import google_mcp
 from utils.gmail_parser import _header, _message_view, _sender
 from utils.pagination import collect_pages
@@ -52,7 +53,7 @@ def _require_query(query: str) -> str:
     return query.strip()
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=READ)
 def gmail_top_senders(query: str = "category:promotions is:unread", sample_size: int = 500, top: int = 25) -> dict:
     """Find who sends the mail matching a Gmail search query, to decide what to bulk-trash.
 
@@ -82,7 +83,7 @@ def gmail_top_senders(query: str = "category:promotions is:unread", sample_size:
     }
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=DESTRUCTIVE)
 def gmail_bulk_trash(query: str, dry_run: bool = True, keep_starred: bool = True, max_messages: int = 20000) -> dict:
     """Move EVERY message matching a Gmail search query to Trash in one call (any number of messages).
 
@@ -117,7 +118,7 @@ def gmail_bulk_trash(query: str, dry_run: bool = True, keep_starred: bool = True
     }
 
 
-@google_mcp.tool
+@google_mcp.tool(annotations=WRITE)
 def gmail_restore_from_trash(query: str, max_messages: int = 20000) -> dict:
     """Undo gmail_bulk_trash: move messages in Trash that match a Gmail search query back out of Trash.
     Pass the same query that was used to trash them."""

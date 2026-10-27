@@ -1,0 +1,6 @@
+# `gcloud run deploy --source .` always uses the root Dockerfile, so the shared server is built
+# with this config instead. Submitted by `make deploy-friends`.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "multiuser/Dockerfile", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]

@@ -69,6 +69,21 @@ class GmailClient:
     def batch_modify(self, body: dict) -> None:
         self._execute(lambda svc: svc.users().messages().batchModify(userId="me", body=body))
 
+    def get_message(self, msg_id: str, **params) -> dict:
+        return self._execute(lambda svc: svc.users().messages().get(userId="me", id=msg_id, **params))
+
+    def list_drafts(self, **params) -> dict:
+        return self._execute(lambda svc: svc.users().drafts().list(userId="me", **params))
+
+    def get_draft(self, draft_id: str, **params) -> dict:
+        return self._execute(lambda svc: svc.users().drafts().get(userId="me", id=draft_id, **params))
+
+    def create_draft(self, body: dict) -> dict:
+        return self._execute(lambda svc: svc.users().drafts().create(userId="me", body=body))
+
+    def send_draft(self, draft_id: str) -> dict:
+        return self._execute(lambda svc: svc.users().drafts().send(userId="me", body={"id": draft_id}))
+
     def get_metadata(self, ids: list[str], headers: list[str]) -> tuple[list[dict], list[str]]:
         """Fetch the given headers of many messages in one batch HTTP request.
 
@@ -89,7 +104,7 @@ class GmailClient:
                 batch.add(
                     svc.users().messages().get(
                         userId="me", id=msg_id, format="metadata", metadataHeaders=headers,
-                        fields="id,internalDate,payload/headers",
+                        fields="id,threadId,labelIds,snippet,internalDate,payload/headers",
                     ),
                     request_id=msg_id,
                 )

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-10-14_
+_Last updated: 2026-10-27_
 
 ## What this is
 
@@ -16,13 +16,17 @@ The author does not operate a server that receives your data and cannot see it.
 When you sign in with Google and grant access, the tool can:
 
 - **Google Tasks**: read, create, update and delete your task lists and tasks.
-- **Gmail**: search your mail, read message headers (sender, subject, date, unsubscribe link) and
-  move messages to and from Trash. It does not read message bodies, send mail, or permanently delete.
+- **Gmail**: search and read your mail (including message bodies and attachment names), create
+  drafts, send drafts, and move messages to and from Trash. It only sends a draft after showing you
+  exactly what will go out and you agree, and it cannot permanently delete mail.
+- **Google Calendar**: read your calendars and events, and create, change and delete events.
+  Invitations and updates are only emailed to guests after you agree to a preview.
 - **Google Keep** (optional, via an unofficial library): read, create, edit, archive and trash your notes
   and checklists.
-- **Outlook.com** (optional, via Microsoft Graph): list, search and read your mail (including message
-  bodies), mail folders, attachment names and calendar events. Its access is read-only: it cannot send,
-  move, delete or change anything.
+- **Outlook.com** (optional, via Microsoft Graph): search and read your mail (including message
+  bodies) and folders; create drafts and replies; send drafts after you agree to a preview; move,
+  flag, mark read and delete messages (to Deleted Items); create folders; read and change your
+  calendar events; and read and change your Microsoft To Do tasks. It cannot permanently delete mail.
 
 It only does these things when the AI assistant you connected asks it to, in response to your requests.
 
@@ -35,6 +39,35 @@ It only does these things when the AI assistant you connected asks it to, in res
   to the AI assistant you connected, and nowhere else.
 - **Platform logs.** If you deploy to Google Cloud Run, Google's platform keeps standard request
   logs for your project. That is controlled by you, in your Google Cloud project.
+
+## The shared server (if a friend invited you)
+
+The repository also contains an optional shared server (`multiuser/`) that its owner can run for
+up to 10 invited friends. If you sign in to someone else's copy, it works differently from the
+personal setup above:
+
+- **Who runs it.** The person who invited you operates the server in their own Google Cloud project.
+  They are responsible for it, not the author of this software (unless the author invited you).
+- **Who can use it.** Only email addresses the owner has added. If you aren't on the list, the
+  sign-in is refused and the tokens Google just issued are revoked straight away, so nothing of
+  yours is kept.
+- **What is stored.** Your Google email address, your Google access and refresh tokens, and, only
+  if you link Outlook, your Microsoft refresh token. They are kept in the owner's Firestore
+  database, encrypted with a key only the server holds. A daily count of your tool calls is kept
+  for two days to enforce usage limits.
+- **What is not stored.** The contents of your tasks, notes and email. They pass through to the AI
+  app you connected, as with the personal setup.
+- **What the owner can technically do.** Whoever controls the server and its key could in principle
+  use the stored tokens to access the services you granted. Only use a shared server run by someone
+  you trust.
+- **Your choices.** You can untick Tasks, Gmail or Calendar on Google's consent screen; those tools
+  then stay hidden. Outlook is only linked if you ask for it. Nothing is emailed on your behalf
+  without you agreeing to a preview first.
+- **Removing your data.** Ask your AI app to run `outlook_disconnect` to delete your Microsoft token.
+  Revoke the server's access at <https://myaccount.google.com/permissions> (Google) and
+  <https://account.live.com/consent/Manage> (Microsoft), and ask the owner to remove you from the
+  list. Stored Google tokens stop working as soon as you revoke them, and are deleted from storage
+  automatically within a year.
 
 ## Sharing
 
