@@ -7,6 +7,7 @@ bind the singletons with `from clients.x import y` at import time.
 
 Keep is left alone: it stays on the owner's env credentials and access.py keeps friends away from it.
 """
+import asyncio
 import threading
 import time
 from collections import OrderedDict
@@ -31,6 +32,7 @@ from constants.outlook_consts import OUTLOOK_AUTHORITY, OUTLOOK_SCOPES
 from settings import Settings
 
 SERVICE_CACHE_SIZE = 20  # built Google API services, one per live access token
+MAX_PENDING_SIGN_INS = 3  # Outlook device codes kept per user while they finish signing in
 
 
 def _contact(owner_email: str) -> str:
@@ -112,7 +114,10 @@ class OutlookAccounts:
         self._owner_email = owner_email
         self._app = None
         self._access: dict[str, tuple[str, float]] = {}  # email -> (access token, expires at)
-        self._pending: dict[str, dict] = {}  # email -> device flow waiting for the user
+        self._pending: dict[str, list[dict]] = {}  # email -> device flows waiting for the user, oldest first
+        # One per user: a refresh, a finished sign-in and a disconnect never interleave, so a refresh
+        # can't write a token back after disconnect deleted it
+        self._locks: dict[str, asyncio.Lock] = {}
 
     def _msal(self) -> msal.PublicClientApplication:
         if not self._client_id:
@@ -121,19 +126,29 @@ class OutlookAccounts:
             self._app = msal.PublicClientApplication(self._client_id, authority=OUTLOOK_AUTHORITY)
         return self._app
 
-    async def access_token(self, email: str) -> str:
+    def _lock(self, email: str) -> asyncio.Lock:
+        return self._locks.setdefault(email, asyncio.Lock())
+
+    def _cached(self, email: str) -> str | None:
         cached = self._access.get(email)
-        if cached and cached[1] > time.time() + 60:
-            return cached[0]
-        stored = await self._store.get(email, collection="outlook")
-        if not stored:
-            raise ToolError("Outlook isn't linked to your account yet; call outlook_connect first")
-        result = await anyio.to_thread.run_sync(
-            self._msal().acquire_token_by_refresh_token, stored["refresh_token"], OUTLOOK_SCOPES
-        )
-        return await self._save(email, result)
+        return cached[0] if cached and cached[1] > time.time() + 60 else None
+
+    async def access_token(self, email: str) -> str:
+        if token := self._cached(email):
+            return token
+        async with self._lock(email):
+            if token := self._cached(email):  # refreshed by a call that held the lock first
+                return token
+            stored = await self._store.get(email, collection="outlook")
+            if not stored:
+                raise ToolError("Outlook isn't linked to your account yet; call outlook_connect first")
+            result = await anyio.to_thread.run_sync(
+                self._msal().acquire_token_by_refresh_token, stored["refresh_token"], OUTLOOK_SCOPES
+            )
+            return await self._save(email, result)
 
     async def _save(self, email: str, result: dict) -> str:
+        """Caller must hold the user's lock."""
         if "access_token" not in result:
             reason = result.get("error_description") or result.get("error")
             raise ToolError(
@@ -150,27 +165,47 @@ class OutlookAccounts:
         flow = await anyio.to_thread.run_sync(self._msal().initiate_device_flow, OUTLOOK_SCOPES)
         if "user_code" not in flow:
             raise ToolError(f"Couldn't start the Microsoft sign-in: {flow.get('error_description', flow)}")
-        self._pending[email] = flow
+        # Earlier codes stay valid, in case the user enters one of those instead
+        flows = [f for f in self._pending.get(email, []) if f.get("expires_at", 0) > time.time()]
+        self._pending[email] = [*flows, flow][-MAX_PENDING_SIGN_INS:]
         return flow
 
     async def finish_connect(self, email: str) -> bool:
         """True once linked, False while the user still has to enter the code."""
-        flow = self._pending.get(email)
-        if flow is None:
-            raise ToolError("No Outlook sign-in in progress; call outlook_connect first")
-        # exit_condition makes MSAL poll Microsoft once instead of blocking until the code expires
-        result = await anyio.to_thread.run_sync(
-            lambda: self._msal().acquire_token_by_device_flow(flow, exit_condition=lambda _: True)
-        )
-        if result.get("error") in ("authorization_pending", "slow_down"):
+        async with self._lock(email):
+            flows = self._pending.get(email)
+            if not flows:
+                raise ToolError("No Outlook sign-in in progress; call outlook_connect first")
+            failure = None
+            for flow in reversed(flows):  # the newest code is the one the user most likely entered
+                # A sign-in that finished but couldn't be stored keeps its result, since Microsoft
+                # won't hand out tokens for the same code twice
+                if "result" not in flow:
+                    # exit_condition makes MSAL poll Microsoft once instead of blocking until the code expires
+                    result = await anyio.to_thread.run_sync(
+                        lambda f=flow: self._msal().acquire_token_by_device_flow(f, exit_condition=lambda _: True)
+                    )
+                    if result.get("error") in ("authorization_pending", "slow_down"):
+                        continue
+                    if "access_token" not in result:
+                        failure = result
+                        flows.remove(flow)
+                        continue
+                    flow["result"] = result
+                await self._save(email, flow["result"])
+                del self._pending[email]
+                return True
+            if flows:
+                return False
+            del self._pending[email]
+            await self._save(email, failure)  # raises with Microsoft's reason
             return False
-        del self._pending[email]
-        await self._save(email, result)
-        return True
 
     async def disconnect(self, email: str) -> bool:
-        self._access.pop(email, None)
-        return await self._store.delete(email, collection="outlook")
+        async with self._lock(email):
+            self._access.pop(email, None)
+            self._pending.pop(email, None)
+            return await self._store.delete(email, collection="outlook")
 
 
 # GraphClient asks its token provider synchronously, but the caller's refresh token lives in the

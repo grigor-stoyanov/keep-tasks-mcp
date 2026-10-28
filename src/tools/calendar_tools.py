@@ -106,9 +106,10 @@ def calendar_create_event(
         body["location"] = location
     if attendees:
         body["attendees"] = [{"email": a} for a in attendees]
+        details = {"calendar_id": calendar_id, **body}
         if not confirm:
-            return send_guard.preview("calendar_create_event", body)
-        send_guard.confirm("calendar_create_event", body)
+            return send_guard.preview("calendar_create_event", details)
+        send_guard.confirm("calendar_create_event", details)
     created = calendar_client.insert_event(calendar_id, body, send_updates="all" if attendees else "none")
     return _event_view(created)
 
@@ -138,7 +139,7 @@ def calendar_update_event(
         raise ToolError("Nothing to change; give at least one field")
     guests = [a.get("email") for a in calendar_client.get_event(calendar_id, event_id).get("attendees", [])]
     if guests:
-        details = {"event_id": event_id, "changes": patch, "notifies": guests}
+        details = {"calendar_id": calendar_id, "event_id": event_id, "changes": patch, "notifies": guests}
         if not confirm:
             return send_guard.preview("calendar_update_event", details)
         send_guard.confirm("calendar_update_event", details)
@@ -154,7 +155,7 @@ def calendar_delete_event(event_id: str, calendar_id: str = "primary", confirm: 
     event = calendar_client.get_event(calendar_id, event_id)
     guests = [a.get("email") for a in event.get("attendees", [])]
     if guests:
-        details = {"event": _event_view(event), "cancellation_to": guests}
+        details = {"calendar_id": calendar_id, "event": _event_view(event), "cancellation_to": guests}
         if not confirm:
             return send_guard.preview("calendar_delete_event", details)
         send_guard.confirm("calendar_delete_event", details)

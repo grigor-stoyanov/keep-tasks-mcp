@@ -34,9 +34,8 @@ def _summary(m: dict) -> dict:
     }
 
 
-def _draft_details(draft_id: str) -> dict:
+def _draft_details(draft_id: str, m: dict) -> dict:
     """Everything that would go out, read back from Gmail so the preview matches what is sent."""
-    m = gmail_client.get_draft(draft_id, format="full")["message"]
     return {
         "draft_id": draft_id,
         "to": _header(m, "To"),
@@ -44,7 +43,7 @@ def _draft_details(draft_id: str) -> dict:
         "bcc": _header(m, "Bcc"),
         "subject": _header(m, "Subject"),
         "body": _body_text(m.get("payload", {})),
-        "attachments": _attachments(m.get("payload", {})),
+        "attachments": _attachments(m.get("payload", {}), with_details=True),
     }
 
 
@@ -141,9 +140,18 @@ def gmail_send_draft(draft_id: str, confirm: bool = False) -> dict:
     out. Show that to the user and ask. Only after the user clearly says yes, call again with
     confirm=true. The second call is refused if the draft changed since the preview, or if more
     than 15 minutes have passed."""
-    details = _draft_details(draft_id)
+    m = gmail_client.get_draft(draft_id, format="full")["message"]
+    details = _draft_details(draft_id, m)
+    # Gmail never changes a message: editing a draft, attachments included, gives it a new message
+    # id. Binding the preview to that id means any edit since the preview is refused.
     if not confirm:
-        return send_guard.preview("gmail_send_draft", details)
-    send_guard.confirm("gmail_send_draft", details)
-    sent = gmail_client.send_draft(draft_id)
+        return send_guard.preview("gmail_send_draft", details, binding=m["id"])
+    send_guard.confirm("gmail_send_draft", details, binding=m["id"])
+    # Send the previewed message itself rather than "whatever the draft holds now", so an edit made
+    # after this check can't slip out unseen
+    raw = gmail_client.get_message(m["id"], format="raw")["raw"]
+    sent = gmail_client.send_message({"raw": raw, "threadId": m.get("threadId")})
+    # Clear the draft like Gmail's own send does, unless it was edited meanwhile
+    if gmail_client.get_draft(draft_id, format="minimal")["message"]["id"] == m["id"]:
+        gmail_client.delete_draft(draft_id)
     return {"sent": True, "message_id": sent.get("id"), "thread_id": sent.get("threadId"), "to": details["to"], "subject": details["subject"]}

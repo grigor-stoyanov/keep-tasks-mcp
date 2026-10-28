@@ -68,7 +68,7 @@ def register(friends: Friends, accounts: OutlookAccounts, settings: Settings, st
         Google sign-in stays stored but is refused; they can remove the app from their Google account."""
         _owner_only()
         email = email.strip().lower()
-        if not await friends.remove(email):
-            return {"email": email, "status": "wasn't a friend", "slots": f"{len(await friends.all())} of {MAX_FRIENDS}"}
+        removed = await friends.remove(email)
+        # Even if they weren't on the list any more, so calling this again finishes a cleanup that failed
         await accounts.disconnect(email)
-        return {"email": email, "status": "removed", "slots": f"{len(await friends.all())} of {MAX_FRIENDS}"}
+        return {"email": email, "status": "removed" if removed else "wasn't a friend", "slots": f"{len(await friends.all())} of {MAX_FRIENDS}"}

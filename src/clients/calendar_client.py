@@ -2,6 +2,7 @@ import os
 import threading
 
 from fastmcp.exceptions import ToolError
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -43,6 +44,8 @@ class CalendarClient:
                 self._service = self._build_service()
             try:
                 return make_request(self._service).execute()
+            except RefreshError as e:
+                raise ToolError(f"Google Calendar access not granted ({e}); re-run `make env` to sign in with the Calendar scope")
             except HttpError as e:
                 raise ToolError(f"Google Calendar API error: {e}")
 

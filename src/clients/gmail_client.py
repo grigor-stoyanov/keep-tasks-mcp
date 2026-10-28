@@ -81,8 +81,11 @@ class GmailClient:
     def create_draft(self, body: dict) -> dict:
         return self._execute(lambda svc: svc.users().drafts().create(userId="me", body=body))
 
-    def send_draft(self, draft_id: str) -> dict:
-        return self._execute(lambda svc: svc.users().drafts().send(userId="me", body={"id": draft_id}))
+    def delete_draft(self, draft_id: str) -> None:
+        self._execute(lambda svc: svc.users().drafts().delete(userId="me", id=draft_id))
+
+    def send_message(self, body: dict) -> dict:
+        return self._execute(lambda svc: svc.users().messages().send(userId="me", body=body))
 
     def get_metadata(self, ids: list[str], headers: list[str]) -> tuple[list[dict], list[str]]:
         """Fetch the given headers of many messages in one batch HTTP request.

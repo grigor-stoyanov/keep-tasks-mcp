@@ -148,3 +148,7 @@ which tools to offer.
   optional scopes and limits are checked locally with `STORE=memory` and faked tokens.
 - **Pending Outlook sign-ins live in memory.** Fine with one instance; a restart mid-sign-in just
   means asking again.
+- **Some guarantees assume one instance.** The daily call counter, allowlist edits and Outlook token
+  refreshes are kept consistent by in-process locks, previews and bulk dry runs are remembered in
+  memory, and `--max-instances 1` makes that sufficient. Running more instances would need
+  Firestore transactions for these instead.

@@ -11,6 +11,7 @@ from constants.tool_annotations import DESTRUCTIVE, READ, WRITE
 from server import google_mcp
 
 IMPORTANCE = ("low", "normal", "high")
+MAX_TASKS = 500
 
 
 async def _list_id(list_id: str | None) -> str:
@@ -60,7 +61,9 @@ async def outlook_todo_list_lists() -> dict:
 
 @google_mcp.tool(annotations=READ)
 async def outlook_todo_list_tasks(list_id: str | None = None, include_completed: bool = False, max_results: int = 100) -> dict:
-    """Tasks in a Microsoft To Do list (default: the Tasks list), open ones only unless include_completed."""
+    """Tasks in a Microsoft To Do list (default: the Tasks list), open ones only unless include_completed.
+    At most 500."""
+    max_results = max(1, min(max_results, MAX_TASKS))
     params = {"$top": min(max_results, 100)}
     if not include_completed:
         params["$filter"] = "status ne 'completed'"

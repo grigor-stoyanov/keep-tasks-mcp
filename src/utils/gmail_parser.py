@@ -43,14 +43,18 @@ def _body_text(payload: dict) -> str:
     return "\n".join(plain).strip() if plain else html_to_text("\n".join(rich))
 
 
-def _attachments(payload: dict) -> list[str]:
-    names = []
+def _attachments(payload: dict, with_details: bool = False) -> list:
+    """Attachment file names, or {name, type, bytes} for each with with_details."""
+    found = []
 
     def walk(part: dict) -> None:
         if part.get("filename"):
-            names.append(part["filename"])
+            if with_details:
+                found.append({"name": part["filename"], "type": part.get("mimeType"), "bytes": part.get("body", {}).get("size")})
+            else:
+                found.append(part["filename"])
         for child in part.get("parts", []):
             walk(child)
 
     walk(payload)
-    return names
+    return found
