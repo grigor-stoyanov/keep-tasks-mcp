@@ -3,6 +3,7 @@
 FRIEND_EMAILS only seeds it the first time the server starts with an empty store. After that the
 owner's friends_add and friends_remove tools (friend_tools.py) are the way to change it.
 """
+import asyncio
 import re
 import time
 from datetime import datetime, timezone
@@ -13,8 +14,8 @@ from key_value.aio.protocols.key_value import AsyncKeyValue
 from settings import MAX_FRIENDS, Settings
 
 COLLECTION, KEY = "friends", "allowlist"
-# The allowlist is checked on every request. All writes go through the one instance and update the
-# cache at once, so this only matters if two instances overlap briefly during a redeploy.
+# Listing tools uses this cache. Tool calls and sign-ins read the store fresh (contains(fresh=True)),
+# so a removal also cuts off an instance that overlaps during a redeploy straight away.
 CACHE_SECONDS = 60
 _EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[a-z]{2,}")
 
@@ -25,15 +26,18 @@ class Friends:
         self._settings = settings
         self._cache: dict[str, dict] | None = None
         self._loaded_at = 0.0
+        # add and remove are load-modify-save of the whole list. The server runs as one instance
+        # (--max-instances 1), so this lock is enough to keep overlapping changes from undoing each other.
+        self._write_lock = asyncio.Lock()
 
-    async def all(self) -> dict[str, dict]:
+    async def all(self, fresh: bool = False) -> dict[str, dict]:
         """email -> {"added": date}"""
-        if self._cache is None or time.monotonic() - self._loaded_at > CACHE_SECONDS:
+        if fresh or self._cache is None or time.monotonic() - self._loaded_at > CACHE_SECONDS:
             await self._load()
         return self._cache
 
-    async def contains(self, email: str) -> bool:
-        return bool(email) and email in await self.all()
+    async def contains(self, email: str, fresh: bool = False) -> bool:
+        return bool(email) and email in await self.all(fresh=fresh)
 
     async def add(self, email: str) -> bool:
         """True if added, False if they were already on the list."""
@@ -42,23 +46,25 @@ class Friends:
             raise ToolError(f"{email!r} doesn't look like an email address")
         if email == self._settings.owner_email:
             raise ToolError("That's the owner's own address; the owner always has access")
-        friends = await self._load()
-        if email in friends:
-            return False
-        if len(friends) >= MAX_FRIENDS:
-            raise ToolError(f"Already {len(friends)} friends, the limit (MAX_FRIENDS in settings.py). Remove someone first.")
-        friends[email] = {"added": datetime.now(timezone.utc).date().isoformat()}
-        await self._save(friends)
-        return True
+        async with self._write_lock:
+            friends = await self._load()
+            if email in friends:
+                return False
+            if len(friends) >= MAX_FRIENDS:
+                raise ToolError(f"Already {len(friends)} friends, the limit (MAX_FRIENDS in settings.py). Remove someone first.")
+            friends[email] = {"added": datetime.now(timezone.utc).date().isoformat()}
+            await self._save(friends)
+            return True
 
     async def remove(self, email: str) -> bool:
         """True if removed, False if they weren't on the list."""
         email = email.strip().lower()
-        friends = await self._load()
-        if friends.pop(email, None) is None:
-            return False
-        await self._save(friends)
-        return True
+        async with self._write_lock:
+            friends = await self._load()
+            if friends.pop(email, None) is None:
+                return False
+            await self._save(friends)
+            return True
 
     async def _load(self) -> dict[str, dict]:
         # Writes always start from a fresh read, so a stale cache can't undo someone else's change

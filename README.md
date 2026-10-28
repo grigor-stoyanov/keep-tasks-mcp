@@ -124,8 +124,10 @@ restricted scope, so Google shows an "unverified app" warning for your own clien
 A typical cleanup:
 
 1. `gmail_top_senders` (default query `category:promotions is:unread`) lists the biggest senders.
-2. `gmail_bulk_trash(query="from:deals@shop.com")` dry run: count plus a sample to check.
-3. `gmail_bulk_trash(..., dry_run=false)` trashes them all. Starred mail is skipped.
+2. `gmail_bulk_trash(query="from:deals@shop.com")` dry run: count plus a sample to check, and a
+   `confirm_token`.
+3. `gmail_bulk_trash(..., dry_run=false, confirm_token=...)` trashes exactly the messages the dry run
+   found (mail that arrived since is left alone). Starred mail is skipped.
 
 Sending: *"Reply to Anna saying Friday works"* makes a draft (`gmail_create_draft` with
 `reply_to_message_id`). The AI then shows the preview from `gmail_send_draft` and only sends after
@@ -160,7 +162,9 @@ redeploy to grant the new permissions.
 
 Bulk cleanup works like Gmail's: `outlook_top_senders` lists who fills a folder, then
 `outlook_bulk_move(destination="Newsletters", from_addresses=[...])` does a dry run and, once you
-confirm, moves every match, 20 per Graph request. Use `destination="deleteditems"` to trash.
+confirm, moves exactly the messages it found, 20 per Graph request. Use `destination="deleteditems"`
+to trash. Changing, deleting or answering an event that emails other people previews first, like
+sending mail.
 1. **Register an app.** In the [Azure portal](https://portal.azure.com) -> *Microsoft Entra ID* ->
    *App registrations* -> *New registration*. Supported account types: *Personal Microsoft accounts
    only*. No redirect URI. Then under *Authentication*, set *Allow public client flows* to **Yes**.

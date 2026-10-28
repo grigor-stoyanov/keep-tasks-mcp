@@ -10,7 +10,7 @@ from key_value.aio.protocols.key_value import AsyncKeyValue
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
-from access import AccessPolicy, allowed_services, caller_email, granted
+from access import AccessPolicy, allowed_services, caller_email, configured, granted
 from constants.tool_annotations import READ
 from friends import Friends
 from invite import FEATURES, claude_install_link, join_page
@@ -42,7 +42,9 @@ def register(settings: Settings, store: AsyncKeyValue, friends: Friends) -> None
         available, can_enable = [], []
         for service in sorted(allowed):
             feature = {"service": service, **FEATURES[service]}
-            if not granted(service):
+            if not configured(service):
+                can_enable.append({**feature, "how": "The owner hasn't set it up on this server yet (make env-keep)"})
+            elif not granted(service):
                 can_enable.append({**feature, "how": f"Remove and re-add the connector, and tick {feature['title']} on Google's consent screen"})
             elif service == "outlook" and not outlook_linked:
                 can_enable.append({**feature, "how": "Ask: \"Connect my Outlook\""})

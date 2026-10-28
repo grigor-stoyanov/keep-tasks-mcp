@@ -18,6 +18,7 @@ google_mcp = FastMCP(
         "Invitations and changes to events with guests work the same way. Never confirm on the "
         "user's behalf. "
         "For bulk cleanup, find senders first (gmail_top_senders, outlook_top_senders), then use "
-        "gmail_bulk_trash or outlook_bulk_move: dry_run first, and only act after the user confirms."
+        "gmail_bulk_trash or outlook_bulk_move: dry_run first, and only after the user confirms call "
+        "again with dry_run=false and the confirm_token the dry run returned."
     ),
 )

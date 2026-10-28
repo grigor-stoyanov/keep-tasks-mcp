@@ -4,7 +4,8 @@ outlook-personal-mcp (https://github.com/salahawad/outlook-personal-mcp, MIT) de
 inside plain register(mcp, client) functions, so instead of forking it we call those functions
 with a stand-in for the server that registers the tools listed in UPSTREAM_TOOLS on google_mcp,
 under an `outlook_` prefix and with our own annotations. Everything else is dropped.
-outlook_mail_tools.py adds what upstream doesn't do safely: sending, replies, invitations, bulk moves.
+outlook_mail_tools.py adds what upstream doesn't do safely: sending, replies, event changes that
+email attendees, and bulk moves.
 """
 import os
 
@@ -12,12 +13,13 @@ from outlook_personal_mcp.config import Settings
 from outlook_personal_mcp.tools import calendar, drafts, folders, mail
 
 from clients.outlook_client import outlook_graph
-from constants.tool_annotations import DESTRUCTIVE, READ, SEND, WRITE
+from constants.tool_annotations import DESTRUCTIVE, READ, WRITE
 from server import google_mcp
 
 # Left out on purpose:
 # - send_mail, reply, forward and send_draft send in one call; outlook_send_draft previews first
-# - create_event invites attendees straight away; outlook_create_event previews first
+# - create_event, update_event, delete_event and respond_event email attendees or the organizer
+#   straight away; the versions in outlook_mail_tools.py preview first
 # - add_attachment and download_attachment read and write the server's own disk
 # - copy_message, rename_folder, delete_folder and permanent_delete
 UPSTREAM_TOOLS = {
@@ -38,10 +40,6 @@ UPSTREAM_TOOLS = {
     "mark_read": WRITE,
     "flag_message": WRITE,
     "delete_message": DESTRUCTIVE,  # to Deleted Items, recoverable
-    "delete_event": DESTRUCTIVE,
-    # Both can email attendees or the organizer, so AI apps should ask first
-    "update_event": SEND,
-    "respond_event": SEND,
 }
 
 

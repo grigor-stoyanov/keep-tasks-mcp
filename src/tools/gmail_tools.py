@@ -14,8 +14,10 @@ from constants.tool_annotations import DESTRUCTIVE, READ, WRITE
 from server import google_mcp
 from utils.gmail_parser import _header, _message_view, _sender
 from utils.pagination import collect_pages
+from utils.send_guard import send_guard
 
 COUNT_CAP = 50000  # stop listing ids past this; a query that broad needs narrowing anyway
+MAX_BULK = 20000  # most messages one bulk call may touch, whatever the caller asks for
 SAMPLE_SIZE = 10
 
 
@@ -84,45 +86,53 @@ def gmail_top_senders(query: str = "category:promotions is:unread", sample_size:
 
 
 @google_mcp.tool(annotations=DESTRUCTIVE)
-def gmail_bulk_trash(query: str, dry_run: bool = True, keep_starred: bool = True, max_messages: int = 20000) -> dict:
-    """Move EVERY message matching a Gmail search query to Trash in one call (any number of messages).
+def gmail_bulk_trash(
+    query: str, dry_run: bool = True, keep_starred: bool = True, max_messages: int = MAX_BULK, confirm_token: str | None = None
+) -> dict:
+    """Move EVERY message matching a Gmail search query to Trash in one call (up to 20000).
 
     Uses Gmail search syntax, e.g. "from:news@shop.com", "category:promotions is:unread older_than:1y",
     "from:(a@x.com OR b@y.com)". Starred mail is skipped unless keep_starred=false.
-    Always call with dry_run=true first (the default): it returns the match count and a sample,
-    which you MUST show the user and get their confirmation before calling again with dry_run=false.
+    Always call with dry_run=true first (the default): it returns the match count, a sample and a
+    confirm_token. You MUST show the user the count and sample and get their confirmation, then call
+    again with the same arguments, dry_run=false and that confirm_token. Only the messages the dry
+    run found are trashed, not mail that arrived since.
     Trashed mail can be undone for 30 days with gmail_restore_from_trash."""
     query = _require_query(query)
+    max_messages = max(1, min(max_messages, MAX_BULK))
     effective = f"({query}) -is:starred" if keep_starred else query
+    params = {"query": effective, "max_messages": max_messages}
+
+    if not dry_run:
+        ids, more_remaining = send_guard.take("gmail_bulk_trash", params, confirm_token)
+        _modify(ids, add=["TRASH"])
+        return {
+            "dry_run": False,
+            "query": effective,
+            "trashed": len(ids),
+            "more_remaining": more_remaining,
+            "undo": f"gmail_restore_from_trash(query={query!r})",
+        }
+
     ids = _list_ids(effective, limit=max_messages + 1)
     more_remaining = len(ids) > max_messages
     ids = ids[:max_messages]
-
-    if dry_run:
-        sample = _fetch_headers(ids[:SAMPLE_SIZE], ["From", "Subject", "Date"])
-        return {
-            "dry_run": True,
-            "query": effective,
-            "would_trash": len(ids),
-            "more_than_max_messages": more_remaining,
-            "sample": [_message_view(m) for m in sample],
-        }
-
-    _modify(ids, add=["TRASH"])
+    sample = _fetch_headers(ids[:SAMPLE_SIZE], ["From", "Subject", "Date"])
     return {
-        "dry_run": False,
+        "dry_run": True,
         "query": effective,
-        "trashed": len(ids),
-        "more_remaining": more_remaining,
-        "undo": f"gmail_restore_from_trash(query={query!r})",
+        "would_trash": len(ids),
+        "more_than_max_messages": more_remaining,
+        "sample": [_message_view(m) for m in sample],
+        "confirm_token": send_guard.hold("gmail_bulk_trash", params, (ids, more_remaining)),
     }
 
 
 @google_mcp.tool(annotations=WRITE)
-def gmail_restore_from_trash(query: str, max_messages: int = 20000) -> dict:
+def gmail_restore_from_trash(query: str, max_messages: int = MAX_BULK) -> dict:
     """Undo gmail_bulk_trash: move messages in Trash that match a Gmail search query back out of Trash.
     Pass the same query that was used to trash them."""
     query = _require_query(query)
-    ids = _list_ids(f"in:trash ({query})", limit=max_messages, include_trash=True)
+    ids = _list_ids(f"in:trash ({query})", limit=max(1, min(max_messages, MAX_BULK)), include_trash=True)
     _modify(ids, remove=["TRASH"])
     return {"query": query, "restored": len(ids)}
